@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>학습지 자동 채점</title>
   <style>
-    /* (이전과 동일한 UI, 결과 표시 영역만 약간 확장) */
     body{font-family:sans-serif;text-align:center;padding:2rem;}
     .button{padding:1rem 2rem;font-size:1.2rem;margin:1rem;cursor:pointer;}
+    #loading{display:none;font-size:1rem;color:#888;}
     #result{display:none;text-align:left;margin:2rem auto;width:90%;max-width:400px;
       padding:1rem;border-radius:8px;background:#fffbe6;border:1px solid #ffe58f;}
     .section{margin-bottom:1rem;}
@@ -17,12 +17,16 @@
 <body>
 
   <h1>📝 학습지 자동 채점</h1>
+
+  <!-- 파일 선택 / 카메라 버튼 -->
   <input type="file" accept="image/*" id="fileUpload" style="display:none"/>
-  <button class="button" onclick="document.getElementById('fileUpload').click()">
-    📁 업로드 또는 촬영
+  <button class="button"
+          onclick="document.getElementById('fileUpload').click()">
+    📁 업로드 또는 촬영하기
   </button>
 
-  <div id="loading" style="display:none;">채점 중… ⏳</div>
+  <div id="loading">채점 중… ⏳</div>
+
   <div id="result">
     <div class="section">
       <div class="section-title">❌ 틀린 문제</div>
@@ -39,35 +43,54 @@
   </div>
 
   <script>
-    async function handleFile(file) {
-      document.getElementById('result').style.display = 'none';
-      document.getElementById('loading').style.display = 'block';
+    // 1) 파일 선택되면 handleFile 호출
+    document.getElementById('fileUpload')
+      .addEventListener('change', e => {
+        if (!e.target.files[0]) return;
+        handleFile(e.target.files[0]);
+      });
 
+    async function handleFile(file) {
+      const loading = document.getElementById('loading');
+      const result  = document.getElementById('result');
+      loading.style.display = 'block';
+      result .style.display = 'none';
+
+      // 2) FileReader로 base64 인코딩
       const reader = new FileReader();
       reader.onload = async () => {
         const base64 = reader.result.split(',')[1];
+
         try {
-          const res = await fetch('https://asia1122.github.io/worksheet-generator-backend/grade', {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ image: base64 })
-          });
+          // 3) 실제 동작하는 채점 API로 POST
+          const res = await fetch(
+            'https://68744ad1-8dba-41d6-9c56-4a5aa4062eb2-00-2w8umvmvho639.sisko.replit.dev/grade',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ image: base64 })
+            }
+          );
+          if (!res.ok) throw new Error(res.statusText);
+
+          // 4) JSON 파싱
           const { wrong, score, advice } = await res.json();
-          document.getElementById('wrong').textContent = wrong || '모두 정답이에요!';
-          document.getElementById('score').textContent = score;
-          document.getElementById('advice').textContent = advice;
-          document.getElementById('result').style.display = 'block';
-        } catch(e) {
-          alert('채점 오류: '+e.message);
+
+          // 5) 화면에 뿌려주기
+          document.getElementById('wrong').textContent  = wrong  || '모두 정답이에요!';
+          document.getElementById('score').textContent  = score  || '0점';
+          document.getElementById('advice').textContent = advice || '잘했어요!';
+
+          result.style.display = 'block';
+
+        } catch(err) {
+          alert('채점 중 오류가 발생했습니다:\n' + err.message);
         } finally {
-          document.getElementById('loading').style.display = 'none';
+          loading.style.display = 'none';
         }
       };
       reader.readAsDataURL(file);
     }
-
-    document.getElementById('fileUpload')
-      .addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
   </script>
 
 </body>
