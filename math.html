@@ -3,53 +3,45 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>📝 학습지 자동 채점 (미리보기 포함)</title>
+  <title>📝 학습지 자동 채점</title>
   <style>
     body { font-family: sans-serif; text-align: center; padding: 2rem; background: #f5f5f5; }
     .button { font-size: 1.1rem; padding: .75rem 1.5rem; margin: 1rem; cursor: pointer; border:none; border-radius:4px; background:#3182ce; color:#fff; }
     #preview { display: none; max-width: 80%; margin: 1rem auto; border: 2px solid #ddd; border-radius:4px; }
+    #ocrText { display: none; white-space: pre-wrap; background: #fff; padding: 1rem; margin: 1rem auto; max-width: 80%; border: 1px solid #ccc; text-align: left; }
     #loading { display: none; color: #555; margin: 1rem; }
     #result, #error { display: none; text-align: left; margin: 2rem auto; width: 90%; max-width: 400px; border-radius: 8px; padding: 1rem; }
     #result { background: #e6fffa; border: 1px solid #b2f5ea; }
     #error  { background: #ffe6e6; border: 1px solid #feb2b2; color: #c53030; }
     .section { margin-bottom: 1rem; }
     .section-title { font-weight: bold; margin-bottom: .5rem; }
-    pre { white-space: pre-wrap; word-break: break-word; }
   </style>
 </head>
 <body>
 
   <h1>📝 학습지 자동 채점</h1>
 
-  <!-- 사진 업로드/촬영 버튼 -->
   <input type="file" accept="image/*" id="fileUpload" style="display:none"/>
   <button class="button" onclick="fileUpload.click()">📸 사진 찍기 또는 업로드</button>
 
-  <!-- 업로드된 이미지 미리보기 -->
-  <img id="preview" alt="업로드된 이미지 미리보기"/>
+  <!-- 업로드한 이미지를 보여주고 -->
+  <img id="preview" alt="업로드된 이미지"/>
+
+  <!-- OCR로 읽은 원본 텍스트를 먼저 보여줍니다 -->
+  <div id="ocrText"></div>
 
   <div id="loading">채점 중… ⏳</div>
-
   <div id="error"><pre id="errorMsg"></pre></div>
-
   <div id="result">
-    <div class="section">
-      <div class="section-title">❌ 틀린 문제</div>
-      <div id="wrong">—</div>
-    </div>
-    <div class="section">
-      <div class="section-title">🎯 점수</div>
-      <div id="score">—</div>
-    </div>
-    <div class="section">
-      <div class="section-title">📝 AI 조언</div>
-      <div id="advice">—</div>
-    </div>
+    <div class="section"><div class="section-title">❌ 틀린 문제</div><div id="wrong">—</div></div>
+    <div class="section"><div class="section-title">🎯 점수</div><div id="score">—</div></div>
+    <div class="section"><div class="section-title">📝 AI 조언</div><div id="advice">—</div></div>
   </div>
 
   <script>
     const fileUpload = document.getElementById('fileUpload');
     const preview    = document.getElementById('preview');
+    const ocrTextDiv = document.getElementById('ocrText');
     const loading    = document.getElementById('loading');
     const resultBox  = document.getElementById('result');
     const errorBox   = document.getElementById('error');
@@ -58,13 +50,10 @@
     fileUpload.addEventListener('change', e => {
       const file = e.target.files[0];
       if (!file) return;
-
-      // 1) 이미지 미리보기
-      const url = URL.createObjectURL(file);
-      preview.src = url;
+      // 이미지 미리보기
+      preview.src = URL.createObjectURL(file);
       preview.style.display = 'block';
-
-      // 2) OCR 채점 실행
+      // OCR & 채점
       handleFile(file);
     });
 
@@ -72,34 +61,38 @@
       loading.style.display   = 'block';
       resultBox.style.display = 'none';
       errorBox.style.display  = 'none';
+      ocrTextDiv.style.display= 'none';
       errorMsg.textContent    = '';
 
       // 파일 → base64
       const reader = new FileReader();
       reader.onload = async () => {
         const base64 = reader.result.split(',')[1];
-
         try {
-          const res = await fetch(
-            'https://68744ad1-8dba-41d6-9c56-4a5aa4062eb2-00-2w8umvmvho639.sisko.replit.dev/grade',
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image: base64 })
-            }
-          );
+          const res = await fetch('https://…your-replit-url…/grade', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ image: base64 })
+          });
           const data = await res.json();
+
+          // 1) OCR 원본 텍스트 표시
+          ocrTextDiv.textContent = data.rawText || '(읽어들인 텍스트가 없습니다)';
+          ocrTextDiv.style.display = 'block';
 
           if (!res.ok) {
             errorMsg.textContent = `오류 (${res.status}): ${data.error}`;
             errorBox.style.display = 'block';
           } else {
-            document.getElementById('wrong').textContent  = data.wrong  || '모두 정답이에요!';
-            document.getElementById('score').textContent  = data.score  || '0점';
-            document.getElementById('advice').textContent = data.advice || '잘했어요!';
-            resultBox.style.display = 'block';
+            // 2) 잠시 대기 후 채점 결과 표시
+            setTimeout(()=>{
+              document.getElementById('wrong').textContent  = data.wrong  || '모두 정답이에요!';
+              document.getElementById('score').textContent  = data.score  || '0점';
+              document.getElementById('advice').textContent = data.advice || '잘했어요!';
+              resultBox.style.display = 'block';
+            }, 500);
           }
-        } catch (err) {
+        } catch(err) {
           errorMsg.textContent = `네트워크 오류:\n${err.message}`;
           errorBox.style.display = 'block';
         } finally {
