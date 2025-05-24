@@ -3,16 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <title>수학 문제 채점</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    #result { margin-top: 20px; white-space: pre-line; background: #f8f8f8; padding: 10px; border: 1px solid #ccc; }
+  </style>
 </head>
 <body>
   <h1>📷 수학 시험지를 촬영하거나 업로드하세요</h1>
 
   <form>
     <input type="file" accept="image/*" capture="environment" required>
-    <p>※ 시험지가 정면에서 잘 보이도록 찍어 주세요.</p>
+    <p>※ 시험지를 정면에서 선명하게 촬영해 주세요.</p>
     <button type="submit">채점하기</button>
   </form>
 
+  <div id="result">📊 채점 결과가 여기에 표시됩니다.</div>
   <p><a href="index.html">← 메인으로 돌아가기</a></p>
 
   <script>
@@ -25,6 +30,8 @@
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64 = reader.result.split(',')[1];
+        const resultDiv = document.getElementById("result");
+        resultDiv.textContent = "채점 중입니다...";
 
         try {
           const res = await fetch("https://68744ad1-8dba-41d6-9c56-4a5aa4062eb2-00-2w8umvmvho639.sisko.replit.dev/grade", {
@@ -32,21 +39,24 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               image: base64,
-              hint: `다음은 3학년 수학 문제에 대한 정답 목록입니다. 이 정답을 기준으로 학생의 답이 맞는지 비교해 주세요. 틀린 문제는 번호, 문제식, 학생 답, 정답을 표로 보여 주세요.
+              hint: `다음은 3학년 수학 문제의 정답입니다. 학생의 시험지를 보고 문제를 식별한 뒤, 아래 정답과 비교해 오답을 표 형식으로 정리해 주세요.
+문제를 계산하지 말고 비교만 하세요.
+
 1: 243 + 326 = 569
 2: 428 + 351 = 779
 3: 273 + 314 = 587
 4: 183 + 402 = 585
 5: 527 - 314 = 213
 6: 627 - 212 = 415
-...`
+7: 942 - 457 = 485
+8: 184 + 437 = 621`
             })
           });
 
           const data = await res.json();
-          alert("📊 채점 결과:\n\n" + data.result);
+          resultDiv.textContent = "📊 채점 결과:\n\n" + (data.result || "결과를 불러오지 못했습니다.");
         } catch (err) {
-          alert("❌ 오류 발생:\n" + err.message);
+          resultDiv.textContent = "❌ 오류 발생:\n" + err.message;
         }
       };
 
