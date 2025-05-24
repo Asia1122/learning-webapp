@@ -2,89 +2,54 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>수학 문제 채점</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f9f9f9;
-      padding: 40px;
-      text-align: center;
-    }
-    h1 {
-      margin-bottom: 20px;
-    }
-    form {
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      display: inline-block;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-    input[type="file"] {
-      margin: 15px 0;
-    }
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      border: none;
-      border-radius: 8px;
-      background-color: #4CAF50;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #45a049;
-    }
-    a {
-      display: block;
-      margin-top: 20px;
-      color: #333;
-      text-decoration: none;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
-    #result {
-      margin-top: 30px;
-      white-space: pre-line;
-      text-align: left;
-      max-width: 500px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-  </style>
 </head>
 <body>
-  <h1>📷 수학 시험지를 업로드하세요</h1>
-  <form id="grading-form">
-    <input type="file" accept="image/*" required>
-    <p>※ 시험지 전체가 잘 나오도록 사진을 찍어 주세요.</p>
+  <h1>📷 수학 시험지를 촬영하거나 업로드하세요</h1>
+
+  <form>
+    <input type="file" accept="image/*" capture="environment" required>
+    <p>※ 시험지가 정면에서 잘 보이도록 찍어 주세요.</p>
     <button type="submit">채점하기</button>
   </form>
-  <div id="result"></div>
-  <a href="index.html">← 메인으로 돌아가기</a>
+
+  <p><a href="index.html">← 메인으로 돌아가기</a></p>
 
   <script>
-    document.getElementById("grading-form").addEventListener("submit", async (e) => {
+    document.querySelector("form").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const fileInput = document.querySelector("input[type=file]");
-      const file = fileInput.files[0];
+
+      const file = document.querySelector("input[type=file]").files[0];
       if (!file) return alert("파일을 선택해 주세요.");
 
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64 = reader.result.split(',')[1];
 
-        const res = await fetch("https://68744ad1-8dba-41d6-9c56-4a5aa4062eb2-00-2w8umvmvho639.sisko.replit.dev/grade", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: base64 })
-        });
+        try {
+          const res = await fetch("https://68744ad1-8dba-41d6-9c56-4a5aa4062eb2-00-2w8umvmvho639.sisko.replit.dev/grade", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              image: base64,
+              hint: `다음은 3학년 수학 문제에 대한 정답 목록입니다. 이 정답을 기준으로 학생의 답이 맞는지 비교해 주세요. 틀린 문제는 번호, 문제식, 학생 답, 정답을 표로 보여 주세요.
+1: 243 + 326 = 569
+2: 428 + 351 = 779
+3: 273 + 314 = 587
+4: 183 + 402 = 585
+5: 527 - 314 = 213
+6: 627 - 212 = 415
+...`
+            })
+          });
 
-        const data = await res.json();
-        document.getElementById("result").innerText = "채점 결과:\n" + data.result;
+          const data = await res.json();
+          alert("📊 채점 결과:\n\n" + data.result);
+        } catch (err) {
+          alert("❌ 오류 발생:\n" + err.message);
+        }
       };
+
       reader.readAsDataURL(file);
     });
   </script>
