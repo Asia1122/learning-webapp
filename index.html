@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>학습 도우미 웹앱</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f4f8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    h1 {
+      margin-bottom: 30px;
+    }
+    .menu-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .menu-button {
+      padding: 15px 30px;
+      font-size: 18px;
+      border: none;
+      border-radius: 10px;
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .menu-button:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <h1>학습 도우미 메뉴</h1>
+  <div class="menu-container">
+    <button class="menu-button" onclick="location.href='math.html'">수학 문제 채점</button>
+    <button class="menu-button" onclick="location.href='writing.html'">글쓰기 연습</button>
+    <button class="menu-button" onclick="location.href='reading.html'">독서 감상문</button>
+  </div>
+</body>
+</html>
