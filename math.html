@@ -43,14 +43,32 @@
     }
 
     #result {
-      margin-top: 30px;
-      padding: 20px;
-      font-size: 18px;
-      background-color: #fff3cd;
-      border: 1px solid #ffeeba;
-      border-radius: 10px;
       display: none;
-      white-space: pre-line;
+      margin-top: 30px;
+      text-align: left;
+      padding: 20px;
+      font-size: 20px;
+      background-color: #fff9c4;
+      border: 2px solid #fdd835;
+      border-radius: 15px;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .section {
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-weight: bold;
+      color: #37474f;
+    }
+
+    #loading {
+      margin-top: 20px;
+      font-size: 18px;
+      color: #888;
     }
 
     input[type="file"] {
@@ -70,14 +88,32 @@
   <input type="file" accept="image/*" capture="environment" id="cameraCapture">
   <label for="cameraCapture" class="button camera-button">📷 카메라로 찍고 채점하기</label>
 
-  <div id="result">📊 채점 결과가 여기에 나타납니다.</div>
+  <div id="loading"></div>
+
+  <div id="result">
+    <div class="section">
+      <div class="section-title">❌ 틀린 문제</div>
+      <div id="wrong"></div>
+    </div>
+    <div class="section">
+      <div class="section-title">💡 오답 이유</div>
+      <div id="reason"></div>
+    </div>
+    <div class="section">
+      <div class="section-title">🎯 점수</div>
+      <div id="score"></div>
+    </div>
+    <div class="section">
+      <div class="section-title">📝 AI 조언</div>
+      <div id="advice"></div>
+    </div>
+  </div>
 
   <script>
     async function handleFile(file) {
       const reader = new FileReader();
-      const resultDiv = document.getElementById("result");
-      resultDiv.style.display = "block";
-      resultDiv.textContent = "채점 중입니다...";
+      document.getElementById("result").style.display = "none";
+      document.getElementById("loading").textContent = "채점 중입니다... ⏳";
 
       reader.onloadend = async () => {
         const base64 = reader.result.split(',')[1];
@@ -90,9 +126,23 @@
           });
 
           const data = await res.json();
-          resultDiv.textContent = "📊 채점 결과:\n\n" + (data.result || "결과를 불러오지 못했습니다.");
+          const resultText = data.result || "결과를 불러오지 못했습니다.";
+
+          // 파싱
+          const wrongMatch = resultText.match(/틀린 문제:\s*(.+)/);
+          const reasonMatch = resultText.match(/오답 이유:[\s\S]*?(?=총점|$)/);
+          const scoreMatch = resultText.match(/총점:\s*(.+)/);
+          const adviceMatch = resultText.match(/AI 조언:\s*([\s\S]*)/);
+
+          document.getElementById("wrong").textContent = wrongMatch ? wrongMatch[1].trim() : "없어요!";
+          document.getElementById("reason").textContent = reasonMatch ? reasonMatch[0].replace("오답 이유:", "").trim() : "모두 잘했어요!";
+          document.getElementById("score").textContent = scoreMatch ? scoreMatch[1].trim() : "-";
+          document.getElementById("advice").textContent = adviceMatch ? adviceMatch[1].trim() : "";
+
+          document.getElementById("loading").textContent = "";
+          document.getElementById("result").style.display = "block";
         } catch (err) {
-          resultDiv.textContent = "❌ 오류:\n" + err.message;
+          document.getElementById("loading").textContent = "❌ 오류: " + err.message;
         }
       };
 
