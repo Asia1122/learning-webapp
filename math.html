@@ -1,161 +1,73 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>수학 문제 채점기</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>학습지 자동 채점</title>
   <style>
-    body {
-      font-family: "Segoe UI", sans-serif;
-      background-color: #f0f8ff;
-      padding: 30px;
-      text-align: center;
-    }
-
-    h1 {
-      color: #2b4e8c;
-    }
-
-    .button {
-      display: block;
-      width: 80%;
-      max-width: 300px;
-      margin: 15px auto;
-      padding: 20px;
-      font-size: 20px;
-      background-color: #4caf50;
-      color: white;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-
-    .button:hover {
-      background-color: #45a049;
-    }
-
-    .camera-button {
-      background-color: #2196f3;
-    }
-
-    .camera-button:hover {
-      background-color: #1e87dc;
-    }
-
-    #result {
-      display: none;
-      margin-top: 30px;
-      text-align: left;
-      padding: 20px;
-      font-size: 20px;
-      background-color: #fff9c4;
-      border: 2px solid #fdd835;
-      border-radius: 15px;
-      max-width: 500px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    .section {
-      margin-bottom: 20px;
-    }
-
-    .section-title {
-      font-weight: bold;
-      color: #37474f;
-    }
-
-    #loading {
-      margin-top: 20px;
-      font-size: 18px;
-      color: #888;
-    }
-
-    input[type="file"] {
-      display: none;
-    }
+    /* (이전과 동일한 UI, 결과 표시 영역만 약간 확장) */
+    body{font-family:sans-serif;text-align:center;padding:2rem;}
+    .button{padding:1rem 2rem;font-size:1.2rem;margin:1rem;cursor:pointer;}
+    #result{display:none;text-align:left;margin:2rem auto;width:90%;max-width:400px;
+      padding:1rem;border-radius:8px;background:#fffbe6;border:1px solid #ffe58f;}
+    .section{margin-bottom:1rem;}
+    .section-title{font-weight:bold;margin-bottom:.5rem;}
   </style>
 </head>
 <body>
 
-  <h1>🧮 수학 문제 채점기</h1>
+  <h1>📝 학습지 자동 채점</h1>
+  <input type="file" accept="image/*" id="fileUpload" style="display:none"/>
+  <button class="button" onclick="document.getElementById('fileUpload').click()">
+    📁 업로드 또는 촬영
+  </button>
 
-  <!-- 업로드 버튼 -->
-  <label for="fileUpload" class="button">📁 사진 업로드로 채점하기</label>
-  <input type="file" accept="image/*" id="fileUpload">
-
-  <!-- 카메라 촬영 버튼 -->
-  <input type="file" accept="image/*" capture="environment" id="cameraCapture">
-  <label for="cameraCapture" class="button camera-button">📷 카메라로 찍고 채점하기</label>
-
-  <div id="loading"></div>
-
+  <div id="loading" style="display:none;">채점 중… ⏳</div>
   <div id="result">
     <div class="section">
       <div class="section-title">❌ 틀린 문제</div>
-      <div id="wrong"></div>
-    </div>
-    <div class="section">
-      <div class="section-title">💡 오답 이유</div>
-      <div id="reason"></div>
+      <div id="wrong">—</div>
     </div>
     <div class="section">
       <div class="section-title">🎯 점수</div>
-      <div id="score"></div>
+      <div id="score">—</div>
     </div>
     <div class="section">
       <div class="section-title">📝 AI 조언</div>
-      <div id="advice"></div>
+      <div id="advice">—</div>
     </div>
   </div>
 
   <script>
     async function handleFile(file) {
+      document.getElementById('result').style.display = 'none';
+      document.getElementById('loading').style.display = 'block';
+
       const reader = new FileReader();
-      document.getElementById("result").style.display = "none";
-      document.getElementById("loading").textContent = "채점 중입니다... ⏳";
-
-      reader.onloadend = async () => {
+      reader.onload = async () => {
         const base64 = reader.result.split(',')[1];
-
         try {
-          const res = await fetch("https://68744ad1-8dba-41d6-9c56-4a5aa4062eb2-00-2w8umvmvho639.sisko.replit.dev/grade", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+          const res = await fetch('https://asia1122.github.io/worksheet-generator-backend/grade', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
             body: JSON.stringify({ image: base64 })
           });
-
-          const data = await res.json();
-          const resultText = data.result || "결과를 불러오지 못했습니다.";
-
-          // 파싱
-          const wrongMatch = resultText.match(/틀린 문제:\s*(.+)/);
-          const reasonMatch = resultText.match(/오답 이유:[\s\S]*?(?=총점|$)/);
-          const scoreMatch = resultText.match(/총점:\s*(.+)/);
-          const adviceMatch = resultText.match(/AI 조언:\s*([\s\S]*)/);
-
-          document.getElementById("wrong").textContent = wrongMatch ? wrongMatch[1].trim() : "없어요!";
-          document.getElementById("reason").textContent = reasonMatch ? reasonMatch[0].replace("오답 이유:", "").trim() : "모두 잘했어요!";
-          document.getElementById("score").textContent = scoreMatch ? scoreMatch[1].trim() : "-";
-          document.getElementById("advice").textContent = adviceMatch ? adviceMatch[1].trim() : "";
-
-          document.getElementById("loading").textContent = "";
-          document.getElementById("result").style.display = "block";
-        } catch (err) {
-          document.getElementById("loading").textContent = "❌ 오류: " + err.message;
+          const { wrong, score, advice } = await res.json();
+          document.getElementById('wrong').textContent = wrong || '모두 정답이에요!';
+          document.getElementById('score').textContent = score;
+          document.getElementById('advice').textContent = advice;
+          document.getElementById('result').style.display = 'block';
+        } catch(e) {
+          alert('채점 오류: '+e.message);
+        } finally {
+          document.getElementById('loading').style.display = 'none';
         }
       };
-
       reader.readAsDataURL(file);
     }
 
-    document.getElementById("fileUpload").addEventListener("change", (e) => {
-      if (e.target.files[0]) handleFile(e.target.files[0]);
-    });
-
-    document.getElementById("cameraCapture").addEventListener("change", (e) => {
-      if (e.target.files[0]) handleFile(e.target.files[0]);
-    });
+    document.getElementById('fileUpload')
+      .addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
   </script>
 
 </body>
