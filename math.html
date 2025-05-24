@@ -2,66 +2,111 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>수학 문제 채점</title>
+  <title>수학 문제 채점기</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; }
-    #result { margin-top: 20px; white-space: pre-line; background: #f8f8f8; padding: 10px; border: 1px solid #ccc; }
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background-color: #f0f8ff;
+      padding: 30px;
+      text-align: center;
+    }
+
+    h1 {
+      color: #2b4e8c;
+    }
+
+    .button {
+      display: block;
+      width: 80%;
+      max-width: 300px;
+      margin: 15px auto;
+      padding: 20px;
+      font-size: 20px;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .button:hover {
+      background-color: #45a049;
+    }
+
+    .camera-button {
+      background-color: #2196f3;
+    }
+
+    .camera-button:hover {
+      background-color: #1e87dc;
+    }
+
+    #result {
+      margin-top: 30px;
+      padding: 20px;
+      font-size: 18px;
+      background-color: #fff3cd;
+      border: 1px solid #ffeeba;
+      border-radius: 10px;
+      display: none;
+      white-space: pre-line;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
   </style>
 </head>
 <body>
-  <h1>📷 수학 시험지를 촬영하거나 업로드하세요</h1>
 
-  <form>
-    <input type="file" accept="image/*" capture="environment" required>
-    <p>※ 시험지를 정면에서 선명하게 촬영해 주세요.</p>
-    <button type="submit">채점하기</button>
-  </form>
+  <h1>🧮 수학 문제 채점기</h1>
 
-  <div id="result">📊 채점 결과가 여기에 표시됩니다.</div>
-  <p><a href="index.html">← 메인으로 돌아가기</a></p>
+  <!-- 업로드 버튼 -->
+  <label for="fileUpload" class="button">📁 사진 업로드로 채점하기</label>
+  <input type="file" accept="image/*" id="fileUpload">
+
+  <!-- 카메라 촬영 버튼 -->
+  <input type="file" accept="image/*" capture="environment" id="cameraCapture">
+  <label for="cameraCapture" class="button camera-button">📷 카메라로 찍고 채점하기</label>
+
+  <div id="result">📊 채점 결과가 여기에 나타납니다.</div>
 
   <script>
-    document.querySelector("form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      const file = document.querySelector("input[type=file]").files[0];
-      if (!file) return alert("파일을 선택해 주세요.");
-
+    async function handleFile(file) {
       const reader = new FileReader();
+      const resultDiv = document.getElementById("result");
+      resultDiv.style.display = "block";
+      resultDiv.textContent = "채점 중입니다...";
+
       reader.onloadend = async () => {
         const base64 = reader.result.split(',')[1];
-        const resultDiv = document.getElementById("result");
-        resultDiv.textContent = "채점 중입니다...";
 
         try {
           const res = await fetch("https://68744ad1-8dba-41d6-9c56-4a5aa4062eb2-00-2w8umvmvho639.sisko.replit.dev/grade", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              image: base64,
-              hint: `다음은 3학년 수학 문제의 정답입니다. 학생의 시험지를 보고 문제를 식별한 뒤, 아래 정답과 비교해 오답을 표 형식으로 정리해 주세요.
-문제를 계산하지 말고 비교만 하세요.
-
-1: 243 + 326 = 569
-2: 428 + 351 = 779
-3: 273 + 314 = 587
-4: 183 + 402 = 585
-5: 527 - 314 = 213
-6: 627 - 212 = 415
-7: 942 - 457 = 485
-8: 184 + 437 = 621`
-            })
+            body: JSON.stringify({ image: base64 })
           });
 
           const data = await res.json();
           resultDiv.textContent = "📊 채점 결과:\n\n" + (data.result || "결과를 불러오지 못했습니다.");
         } catch (err) {
-          resultDiv.textContent = "❌ 오류 발생:\n" + err.message;
+          resultDiv.textContent = "❌ 오류:\n" + err.message;
         }
       };
 
       reader.readAsDataURL(file);
+    }
+
+    document.getElementById("fileUpload").addEventListener("change", (e) => {
+      if (e.target.files[0]) handleFile(e.target.files[0]);
+    });
+
+    document.getElementById("cameraCapture").addEventListener("change", (e) => {
+      if (e.target.files[0]) handleFile(e.target.files[0]);
     });
   </script>
+
 </body>
 </html>
