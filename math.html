@@ -3,22 +3,30 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>학습지 자동 채점</title>
+  <title>📝 학습지 자동 채점</title>
   <style>
-    body{font-family:sans-serif;text-align:center;padding:2rem;}
-    .button{padding:1rem 2rem;font-size:1.2rem;margin:1rem;cursor:pointer;}
-    #loading{display:none;font-size:1rem;color:#888;margin-top:1rem;}
-    #result, #error{display:none;text-align:left;margin:2rem auto;width:90%;max-width:400px;}
-    #result{padding:1rem;border-radius:8px;background:#fffbe6;border:1px solid #ffe58f;}
-    #error{padding:1rem;border-radius:8px;background:#ffe6e6;border:1px solid #ff8f8f;color:#a00;}
-    .section{margin-bottom:1rem;}
-    .section-title{font-weight:bold;margin-bottom:.5rem;}
+    body { font-family: sans-serif; text-align: center; padding: 2rem; background: #f5f5f5; }
+    .input, .button { font-size: 1rem; padding: 0.75rem 1rem; margin: 0.5rem; }
+    .input { width: 200px; }
+    .button { cursor: pointer; }
+    #loading { display: none; color: #555; margin: 1rem; }
+    #result, #error { display: none; text-align: left; margin: 2rem auto; 
+                      width: 90%; max-width: 400px; border-radius: 8px; padding: 1rem; }
+    #result { background: #e6fffa; border: 1px solid #b2f5ea; }
+    #error  { background: #ffe6e6; border: 1px solid #feb2b2; color: #c53030; }
+    .section { margin-bottom: 1rem; }
+    .section-title { font-weight: bold; margin-bottom: .5rem; }
+    pre { white-space: pre-wrap; word-break: break-word; }
   </style>
 </head>
 <body>
 
   <h1>📝 학습지 자동 채점</h1>
 
+  <!-- 학습지 코드 직접 입력 -->
+  <input type="text" id="worksheetCode" class="input" placeholder="학습지 코드 입력" />
+
+  <!-- 파일 선택 / 촬영 버튼 -->
   <input type="file" accept="image/*" id="fileUpload" style="display:none"/>
   <button class="button" onclick="fileUpload.click()">📁 업로드 또는 촬영하기</button>
 
@@ -42,11 +50,12 @@
   </div>
 
   <script>
-    const fileUpload = document.getElementById('fileUpload');
-    const loading    = document.getElementById('loading');
-    const resultBox  = document.getElementById('result');
-    const errorBox   = document.getElementById('error');
-    const errorMsg   = document.getElementById('errorMsg');
+    const fileUpload    = document.getElementById('fileUpload');
+    const loading       = document.getElementById('loading');
+    const resultBox     = document.getElementById('result');
+    const errorBox      = document.getElementById('error');
+    const errorMsg      = document.getElementById('errorMsg');
+    const codeInput     = document.getElementById('worksheetCode');
 
     fileUpload.addEventListener('change', e => {
       if (!e.target.files[0]) return;
@@ -54,13 +63,17 @@
     });
 
     async function handleFile(file) {
-      // 초기화
-      loading.style.display = 'block';
+      const worksheetCode = codeInput.value.trim();
+      if (!worksheetCode) {
+        alert('먼저 학습지 코드를 입력해 주세요.');
+        return;
+      }
+
+      loading.style.display   = 'block';
       resultBox.style.display = 'none';
       errorBox.style.display  = 'none';
       errorMsg.textContent    = '';
 
-      // base64로 인코딩
       const reader = new FileReader();
       reader.onload = async () => {
         const base64 = reader.result.split(',')[1];
@@ -71,29 +84,25 @@
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image: base64 })
+              body: JSON.stringify({
+                image: base64,
+                worksheetCode
+              })
             }
           );
-
-          // 응답 JSON 모두 읽기
           const data = await res.json();
 
           if (!res.ok) {
-            // 400/500 에러 모두 잡아서 errorBox에 출력
-            const errText = data.error 
-                          + (data.stack ? '\n\n' + data.stack : '');
-            errorMsg.textContent = `서버 오류 (${res.status}):\n${errText}`;
+            errorMsg.textContent = `오류 (${res.status}): ${data.error}`;
             errorBox.style.display = 'block';
           } else {
-            // 정상 응답
-            resultBox.querySelector('#wrong').textContent  = data.wrong  || '모두 정답이에요!';
-            resultBox.querySelector('#score').textContent  = data.score  || '0점';
-            resultBox.querySelector('#advice').textContent = data.advice || '잘했어요!';
+            document.getElementById('wrong').textContent  = data.wrong  || '모두 정답이에요!';
+            document.getElementById('score').textContent  = data.score  || '0점';
+            document.getElementById('advice').textContent = data.advice || '잘했어요!';
             resultBox.style.display = 'block';
           }
-        } catch(err) {
-          // 네트워크 오류 등
-          errorMsg.textContent = `네트워크/예외 오류:\n${err.message}`;
+        } catch (err) {
+          errorMsg.textContent = `네트워크 오류:\n${err.message}`;
           errorBox.style.display = 'block';
         } finally {
           loading.style.display = 'none';
