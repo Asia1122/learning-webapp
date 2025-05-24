@@ -7,9 +7,10 @@
   <style>
     body{font-family:sans-serif;text-align:center;padding:2rem;}
     .button{padding:1rem 2rem;font-size:1.2rem;margin:1rem;cursor:pointer;}
-    #loading{display:none;font-size:1rem;color:#888;}
-    #result{display:none;text-align:left;margin:2rem auto;width:90%;max-width:400px;
-      padding:1rem;border-radius:8px;background:#fffbe6;border:1px solid #ffe58f;}
+    #loading{display:none;font-size:1rem;color:#888;margin-top:1rem;}
+    #result, #error{display:none;text-align:left;margin:2rem auto;width:90%;max-width:400px;}
+    #result{padding:1rem;border-radius:8px;background:#fffbe6;border:1px solid #ffe58f;}
+    #error{padding:1rem;border-radius:8px;background:#ffe6e6;border:1px solid #ff8f8f;color:#a00;}
     .section{margin-bottom:1rem;}
     .section-title{font-weight:bold;margin-bottom:.5rem;}
   </style>
@@ -18,14 +19,12 @@
 
   <h1>📝 학습지 자동 채점</h1>
 
-  <!-- 파일 선택 / 카메라 버튼 -->
   <input type="file" accept="image/*" id="fileUpload" style="display:none"/>
-  <button class="button"
-          onclick="document.getElementById('fileUpload').click()">
-    📁 업로드 또는 촬영하기
-  </button>
+  <button class="button" onclick="fileUpload.click()">📁 업로드 또는 촬영하기</button>
 
   <div id="loading">채점 중… ⏳</div>
+
+  <div id="error"><pre id="errorMsg"></pre></div>
 
   <div id="result">
     <div class="section">
@@ -43,26 +42,30 @@
   </div>
 
   <script>
-    // 1) 파일 선택되면 handleFile 호출
-    document.getElementById('fileUpload')
-      .addEventListener('change', e => {
-        if (!e.target.files[0]) return;
-        handleFile(e.target.files[0]);
-      });
+    const fileUpload = document.getElementById('fileUpload');
+    const loading    = document.getElementById('loading');
+    const resultBox  = document.getElementById('result');
+    const errorBox   = document.getElementById('error');
+    const errorMsg   = document.getElementById('errorMsg');
+
+    fileUpload.addEventListener('change', e => {
+      if (!e.target.files[0]) return;
+      handleFile(e.target.files[0]);
+    });
 
     async function handleFile(file) {
-      const loading = document.getElementById('loading');
-      const result  = document.getElementById('result');
+      // 초기화
       loading.style.display = 'block';
-      result .style.display = 'none';
+      resultBox.style.display = 'none';
+      errorBox.style.display  = 'none';
+      errorMsg.textContent    = '';
 
-      // 2) FileReader로 base64 인코딩
+      // base64로 인코딩
       const reader = new FileReader();
       reader.onload = async () => {
         const base64 = reader.result.split(',')[1];
 
         try {
-          // 3) 실제 동작하는 채점 API로 POST
           const res = await fetch(
             'https://68744ad1-8dba-41d6-9c56-4a5aa4062eb2-00-2w8umvmvho639.sisko.replit.dev/grade',
             {
@@ -71,20 +74,27 @@
               body: JSON.stringify({ image: base64 })
             }
           );
-          if (!res.ok) throw new Error(res.statusText);
 
-          // 4) JSON 파싱
-          const { wrong, score, advice } = await res.json();
+          // 응답 JSON 모두 읽기
+          const data = await res.json();
 
-          // 5) 화면에 뿌려주기
-          document.getElementById('wrong').textContent  = wrong  || '모두 정답이에요!';
-          document.getElementById('score').textContent  = score  || '0점';
-          document.getElementById('advice').textContent = advice || '잘했어요!';
-
-          result.style.display = 'block';
-
+          if (!res.ok) {
+            // 400/500 에러 모두 잡아서 errorBox에 출력
+            const errText = data.error 
+                          + (data.stack ? '\n\n' + data.stack : '');
+            errorMsg.textContent = `서버 오류 (${res.status}):\n${errText}`;
+            errorBox.style.display = 'block';
+          } else {
+            // 정상 응답
+            resultBox.querySelector('#wrong').textContent  = data.wrong  || '모두 정답이에요!';
+            resultBox.querySelector('#score').textContent  = data.score  || '0점';
+            resultBox.querySelector('#advice').textContent = data.advice || '잘했어요!';
+            resultBox.style.display = 'block';
+          }
         } catch(err) {
-          alert('채점 중 오류가 발생했습니다:\n' + err.message);
+          // 네트워크 오류 등
+          errorMsg.textContent = `네트워크/예외 오류:\n${err.message}`;
+          errorBox.style.display = 'block';
         } finally {
           loading.style.display = 'none';
         }
