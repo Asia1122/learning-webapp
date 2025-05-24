@@ -24,10 +24,8 @@
   <input type="file" accept="image/*" id="fileUpload" style="display:none"/>
   <button class="button" onclick="fileUpload.click()">📸 사진 찍기 또는 업로드</button>
 
-  <!-- 업로드한 이미지를 보여주고 -->
   <img id="preview" alt="업로드된 이미지"/>
 
-  <!-- OCR로 읽은 원본 텍스트를 먼저 보여줍니다 -->
   <div id="ocrText"></div>
 
   <div id="loading">채점 중… ⏳</div>
@@ -50,10 +48,8 @@
     fileUpload.addEventListener('change', e => {
       const file = e.target.files[0];
       if (!file) return;
-      // 이미지 미리보기
       preview.src = URL.createObjectURL(file);
       preview.style.display = 'block';
-      // OCR & 채점
       handleFile(file);
     });
 
@@ -64,19 +60,21 @@
       ocrTextDiv.style.display= 'none';
       errorMsg.textContent    = '';
 
-      // 파일 → base64
       const reader = new FileReader();
       reader.onload = async () => {
         const base64 = reader.result.split(',')[1];
         try {
-          const res = await fetch('https://…your-replit-url…/grade', {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ image: base64 })
-          });
+          const res = await fetch(
+            'https://68744ad1-8dba-41d6-9c56-4a5aa4062eb2-00-2w8umvmvho639.sisko.replit.dev/grade',
+            {
+              method: 'POST',
+              headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({ image: base64 })
+            }
+          );
           const data = await res.json();
 
-          // 1) OCR 원본 텍스트 표시
+          // OCR 원본 텍스트 표시
           ocrTextDiv.textContent = data.rawText || '(읽어들인 텍스트가 없습니다)';
           ocrTextDiv.style.display = 'block';
 
@@ -84,7 +82,6 @@
             errorMsg.textContent = `오류 (${res.status}): ${data.error}`;
             errorBox.style.display = 'block';
           } else {
-            // 2) 잠시 대기 후 채점 결과 표시
             setTimeout(()=>{
               document.getElementById('wrong').textContent  = data.wrong  || '모두 정답이에요!';
               document.getElementById('score').textContent  = data.score  || '0점';
