@@ -17,18 +17,11 @@
     .section { margin-bottom: 1rem; }
     .section-title { font-weight: bold; margin-bottom: .5rem; }
 
-    /* 래퍼: 테이블이 넘칠 때 가로 스크롤 */
-    .table-wrapper {
-      overflow-x: auto;
-      width: 100%;
-    }
-
-    /* 반응형 채점표 테이블 */
+    .table-wrapper { overflow-x: auto; width: 100%; }
     table.grade-table {
       border-collapse: collapse;
       margin: 0 auto;
-      width: 100%;
-      max-width: 100%;
+      width: 100%; max-width: 100%;
       table-layout: fixed;
     }
     table.grade-table th, table.grade-table td {
@@ -43,39 +36,23 @@
     table.grade-table td.incorrect { color: red; font-weight: bold; }
     #advice { white-space: pre-wrap; }
 
-    /* 인쇄용 페이지 설정 */
-    @page {
-      size: A4 portrait;
-      margin: 10mm;
-    }
+    @page { size: A4 portrait; margin: 10mm; }
     @media print {
-      /* 화면의 모든 요소 숨기기 */
       body > * { display: none !important; }
-      /* 결과만 보이게 */
       #result {
         display: block !important;
-        position: absolute;
-        top: 0; left: 0;
-        width: 100%;
+        position: absolute; top: 0; left: 0; width: 100%;
       }
-      /* 섹션 단위로 줄바꿈 */
       #result .section {
         display: block !important;
         margin-bottom: 1rem !important;
       }
-      /* 테이블은 본래 display 유지 */
       #gradeTable table {
-        display: table !important;
-        width: 100% !important;
+        display: table !important; width: 100% !important;
         border-collapse: collapse !important;
       }
-      #gradeTable th, #gradeTable td {
-        display: table-cell !important;
-      }
-      /* AI 조언 줄바꿈 유지 */
-      #advice {
-        white-space: pre-wrap !important;
-      }
+      #gradeTable th, #gradeTable td { display: table-cell !important; }
+      #advice { white-space: pre-wrap !important; }
     }
   </style>
 </head>
