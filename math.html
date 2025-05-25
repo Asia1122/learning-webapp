@@ -30,14 +30,29 @@
     /* AI 조언 줄바꿈 */
     #advice { white-space: pre-wrap; }
 
-    /* 인쇄용 */
-    @media print {
-      /* 화면의 모든 요소 숨기기 */
-      body > * { display: none !important; }
-      /* 결과만 보이게 */
-      #result, #result * { display: block !important; }
-      #result { position: absolute; top: 0; left: 0; width: 100%; }
-    }
+@media print {
+  /* 1) 화면의 모든 요소 숨기기 */
+  body > * { display: none !important; }
+
+  /* 2) #result 컨테이너만 보이게 */
+  #result { 
+    display: block !important;
+    position: absolute;
+    top: 0; left: 0; width: 100%;
+  }
+
+  /* 3) #result 내부의 요소들은 원래 display 종류를 유지 */
+  #result *,
+  #result table,
+  #result thead,
+  #result tbody,
+  #result tr,
+  #result th,
+  #result td {
+    display: initial !important;
+  }
+}
+
   </style>
 </head>
 <body>
