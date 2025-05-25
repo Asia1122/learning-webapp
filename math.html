@@ -7,11 +7,12 @@
   <style>
     body { font-family: sans-serif; text-align: center; padding: 2rem; background: #f5f5f5; }
     h1 { margin-bottom: 1rem; }
-    .button { font-size: 1.1rem; padding: .75rem 1.5rem; margin: .5rem; cursor: pointer; border: none; border-radius:4px; background:#3182ce; color:#fff; }
+    .button { font-size: 1.1rem; padding: .75rem 1.5rem; margin: .5rem; cursor: pointer; border:none; border-radius:4px; background:#3182ce; color:#fff; }
     #preview { display: none; margin: 1rem auto; border: 2px solid #ddd; border-radius:4px; width: 25%; height: auto; }
     #ocrText { display: none; white-space: pre-wrap; background: #fff; padding: 1rem; margin: 1rem auto; max-width: 80%; border: 1px solid #ccc; text-align: left; }
     #loading { display: none; color: #555; margin: 1rem; }
-    #result, #error { display: none; text-align: left; margin: 2rem auto; width: 90%; max-width: 600px; border-radius: 8px; padding: 1rem; background: #e6fffa; border: 1px solid #b2f5ea; }
+    #result, #error { display: none; text-align: left; margin: 2rem auto; width: 90%; max-width: 600px; border-radius: 8px; padding: 1rem; }
+    #result { background: #e6fffa; border: 1px solid #b2f5ea; }
     #error  { background: #ffe6e6; border: 1px solid #feb2b2; color: #c53030; }
     .section { margin-bottom: 1rem; }
     .section-title { font-weight: bold; margin-bottom: .5rem; }
@@ -48,23 +49,32 @@
       margin: 10mm;
     }
     @media print {
-      /* 인쇄 시, 화면 요소 숨기기 */
+      /* 화면의 모든 요소 숨기기 */
       body > * { display: none !important; }
-      /* 결과 영역만 보이게 */
+      /* 결과만 보이게 */
       #result {
         display: block !important;
         position: absolute;
         top: 0; left: 0;
         width: 100%;
-        zoom: 0.75; /* 필요 시 인쇄 축소 비율 조정 */
       }
-      /* 결과 내부 요소 원래 display 복원 */
-      #result, #result * {
-        display: initial !important;
+      /* 섹션 단위로 줄바꿈 */
+      #result .section {
+        display: block !important;
+        margin-bottom: 1rem !important;
       }
-      /* 테이블 너비 100% */
-      table.grade-table {
+      /* 테이블은 본래 display 유지 */
+      #gradeTable table {
+        display: table !important;
         width: 100% !important;
+        border-collapse: collapse !important;
+      }
+      #gradeTable th, #gradeTable td {
+        display: table-cell !important;
+      }
+      /* AI 조언 줄바꿈 유지 */
+      #advice {
+        white-space: pre-wrap !important;
       }
     }
   </style>
@@ -130,8 +140,8 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ image: base64 })
           });
-          let data = await res.json().catch(async ()=> {
-            throw new Error('서버 응답 파싱 실패: '+ await res.text());
+          let data = await res.json().catch(async () => {
+            throw new Error('서버 응답 파싱 실패: ' + await res.text());
           });
 
           if (data.rawText) {
@@ -145,7 +155,7 @@
           } else {
             // 1..10번 O/X 테이블
             const wrongArr = data.wrong
-              ? data.wrong.split(',').map(x=>x.trim())
+              ? data.wrong.split(',').map(x => x.trim())
               : [];
             const wrapper = document.getElementById('gradeTable');
             wrapper.innerHTML = '';
@@ -153,7 +163,7 @@
             tbl.className = 'grade-table';
             // header
             const head = document.createElement('tr');
-            for (let i=1; i<=10; i++){
+            for (let i = 1; i <= 10; i++) {
               const th = document.createElement('th');
               th.textContent = i;
               head.appendChild(th);
@@ -161,7 +171,7 @@
             tbl.appendChild(head);
             // row
             const row = document.createElement('tr');
-            for (let i=1; i<=10; i++){
+            for (let i = 1; i <= 10; i++) {
               const td = document.createElement('td');
               if (wrongArr.includes(String(i))) {
                 td.textContent = 'X';
