@@ -1,195 +1,135 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>📝 학습지 자동 채점</title>
-  <style>
-    body { font-family: sans-serif; text-align: center; padding: 2rem; background: #f5f5f5; }
-    h1 { margin-bottom: 1rem; }
-    .button { font-size: 1.1rem; padding: .75rem 1.5rem; margin: .5rem; cursor: pointer; border: none; border-radius:4px; background:#3182ce; color:#fff; }
-    #preview { display: none; margin: 1rem auto; border: 2px solid #ddd; border-radius:4px; width: 25%; height: auto; }
-    #ocrText { display: none; white-space: pre-wrap; background: #fff; padding: 1rem; margin: 1rem auto; max-width: 80%; border: 1px solid #ccc; text-align: left; }
-    #loading { display: none; color: #555; margin: 1rem; }
-    #result, #error { display: none; text-align: left; margin: 2rem auto; width: 90%; max-width: 600px; border-radius: 8px; padding: 1rem; background: #e6fffa; border: 1px solid #b2f5ea; }
-    #error  { background: #ffe6e6; border: 1px solid #feb2b2; color: #c53030; }
-    .section { margin-bottom: 1rem; }
-    .section-title { font-weight: bold; margin-bottom: .5rem; }
+// index.js
+require('dotenv').config();
+const express = require('express');
+const cors    = require('cors');
+const fetch   = require('node-fetch');
+const AWS     = require('aws-sdk');
 
-    /* 래퍼: 테이블이 넘칠 때 가로 스크롤 */
-    .table-wrapper {
-      overflow-x: auto;
-      width: 100%;
+// ─── AWS & DynamoDB 설정 ─────────────────────────────────
+AWS.config.update({ region: process.env.AWS_REGION || 'ap-northeast-2' });
+const ddb = new AWS.DynamoDB.DocumentClient();
+
+// ─── 환경변수 로드 ─────────────────────────────────────────
+const WORKSHEETS_TABLE    = process.env.WORKSHEETS_TABLE;
+const CLOVA_URL           = process.env.CLOVA_INVOKE_URL;
+const CLOVA_CLIENT_ID     = process.env.CLOVA_CLIENT_ID;
+const CLOVA_CLIENT_SECRET = process.env.CLOVA_CLIENT_SECRET;
+const OPENAI_KEY          = process.env.OPENAI_API_KEY;
+const OPENAI_URL          = 'https://api.openai.com/v1/chat/completions';
+
+if (!WORKSHEETS_TABLE)    throw new Error('환경변수 WORKSHEETS_TABLE 설정 필요');
+if (!CLOVA_URL)           throw new Error('환경변수 CLOVA_INVOKE_URL 설정 필요');
+if (!CLOVA_CLIENT_ID)     throw new Error('환경변수 CLOVA_CLIENT_ID 설정 필요');
+if (!CLOVA_CLIENT_SECRET) throw new Error('환경변수 CLOVA_CLIENT_SECRET 설정 필요');
+
+// ─── Express 설정 ─────────────────────────────────────────
+const app = express();
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+
+// ─── /grade 엔드포인트 ────────────────────────────────────
+app.post('/grade', async (req, res) => {
+  try {
+    const { image: imageBase64 } = req.body;
+    if (!imageBase64) {
+      return res.status(400).json({ error: '이미지가 전송되지 않았습니다.' });
     }
 
-    /* 반응형 채점표 테이블 */
-    table.grade-table {
-      border-collapse: collapse;
-      margin: 0 auto;
-      width: 100%;
-      max-width: 100%;
-      table-layout: fixed;
+    // 1) Clova OCR 호출
+    const ocrRes = await fetch(CLOVA_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type':           'application/json',
+        'X-NCP-APIGW-API-KEY-ID': CLOVA_CLIENT_ID,
+        'X-OCR-SECRET':           CLOVA_CLIENT_SECRET
+      },
+      body: JSON.stringify({
+        version:   'V2',
+        requestId: `req-${Date.now()}`,
+        timestamp: Date.now(),
+        images: [
+          { format: 'jpg', name: 'sheet', data: imageBase64 }
+        ]
+      })
+    });
+    const ocrJson = await ocrRes.json();
+    console.log('🖼 OCR 전체 응답:', JSON.stringify(ocrJson, null,2));
+
+    const fields = ocrJson.images?.[0]?.fields;
+    if (!Array.isArray(fields) || fields.length === 0) {
+      return res.status(400).json({ error: 'OCR 필드가 없습니다. 템플릿을 확인해 주세요.' });
     }
-    table.grade-table th, table.grade-table td {
-      border: 1px solid #ccc;
-      padding: 6px 4px;
-      width: calc(100%/10);
-      text-align: center;
-      word-break: break-all;
+
+    // 2) 학습지 코드 추출 (name === 'code')
+    const codeField = fields.find(f => f.name === 'code');
+    if (!codeField?.inferText) {
+      return res.status(400).json({ error: 'OCR에서 code 필드를 찾지 못했습니다.' });
     }
-    table.grade-table th { background: #f0f0f0; }
-    table.grade-table td.correct { color: blue; font-weight: bold; }
-    table.grade-table td.incorrect { color: red; font-weight: bold; }
-    #advice { white-space: pre-wrap; }
+    const worksheetCode = codeField.inferText.trim();
 
-    /* 인쇄용 페이지 설정 */
-    @page {
-      size: A4 portrait;
-      margin: 10mm;
+    // 3) 학생 답안 필드 파싱 (a01, a02, …)
+    const answerFields = fields
+      .filter(f => /^a0*\d+$/.test(f.name))
+      .map(f => ({
+        no:  parseInt(f.name.slice(1), 10),
+        ans: Number((f.inferText || '').replace(/[^0-9\-]/g, ''))
+      }));
+
+    if (answerFields.length === 0) {
+      return res.status(400).json({ error: '답안 필드(a01, a02, …)를 찾지 못했습니다.' });
     }
-    @media print {
-      /* 인쇄 시, 화면 요소 숨기기 */
-      body > * { display: none !important; }
-      /* 결과 영역만 보이게 */
-      #result {
-        display: block !important;
-        position: absolute;
-        top: 0; left: 0;
-        width: 100%;
-        zoom: 0.75; /* 필요 시 인쇄 축소 비율 조정 */
-      }
-      /* 결과 내부 요소 원래 display 복원 */
-      #result, #result * {
-        display: initial !important;
-      }
-      /* 테이블 너비 100% */
-      table.grade-table {
-        width: 100% !important;
-      }
+
+    // 4) DynamoDB에서 정답&조언 조회
+    const dbRes = await ddb.query({
+      TableName: WORKSHEETS_TABLE,
+      KeyConditionExpression: 'worksheet_code = :wc',
+      ExpressionAttributeValues: { ':wc': worksheetCode }
+    }).promise();
+
+    if (!dbRes.Items || dbRes.Items.length === 0) {
+      return res.status(404).json({ error: `워크시트 "${worksheetCode}" 정답을 찾을 수 없습니다.` });
     }
-  </style>
-</head>
-<body>
 
-  <h1>📝 학습지 자동 채점</h1>
-
-  <input type="file" accept="image/*" id="fileUpload" style="display:none"/>
-  <button class="button" onclick="fileUpload.click()">📸 사진 찍기 또는 업로드</button>
-  <button class="button" id="printBtn">🖨️ 인쇄하기</button>
-
-  <img id="preview" alt="업로드된 이미지"/>
-
-  <div id="ocrText"></div>
-
-  <div id="loading">채점 중… ⏳</div>
-  <div id="error"><div class="section-title">🚨 에러 메시지</div><pre id="errorMsg"></pre></div>
-  <div id="result">
-    <div class="section">
-      <div class="section-title">📊 채점표</div>
-      <div class="table-wrapper" id="gradeTable"></div>
-    </div>
-    <div class="section"><div class="section-title">🎯 점수</div><div id="score">—</div></div>
-    <div class="section"><div class="section-title">📝 AI 조언</div><div id="advice">—</div></div>
-  </div>
-
-  <script>
-    const ENDPOINT = 'https://68744ad1-8dba-41d6-9c56-4a5aa4062eb2-00-2w8umvmvho639.sisko.replit.dev/grade';
-    const fileUpload = document.getElementById('fileUpload');
-    const printBtn   = document.getElementById('printBtn');
-    const preview    = document.getElementById('preview');
-    const ocrTextDiv = document.getElementById('ocrText');
-    const loading    = document.getElementById('loading');
-    const resultBox  = document.getElementById('result');
-    const errorBox   = document.getElementById('error');
-    const errorMsg   = document.getElementById('errorMsg');
-
-    fileUpload.addEventListener('change', e => {
-      const file = e.target.files[0];
-      if (!file) return;
-      preview.src = URL.createObjectURL(file);
-      preview.style.display = 'block';
-      handleFile(file);
-      fileUpload.value = '';
+    // 5) 정답 맵 & 조언 맵 생성
+    const answerKey = {};
+    const adviceKey = {};
+    dbRes.Items.forEach(item => {
+      answerKey[item.question_number] = item.answer;
+      adviceKey[item.question_number] = item.advice || '';
     });
 
-    printBtn.addEventListener('click', () => window.print());
+    // 6) 채점 및 틀린 문제 수집
+    let correct = 0;
+    const wrongList = [];
+    answerFields.forEach(({ no, ans }) => {
+      if (ans === 0 || `${answerKey[no]}` !== `${ans}`) {
+        wrongList.push(no);
+      } else {
+        correct++;
+      }
+    });
+    const total = Object.keys(answerKey).length;
+    const scoreText = `${Math.round((correct / total) * 100)}점 (${correct}/${total})`;
 
-    async function handleFile(file) {
-      loading.style.display    = 'block';
-      resultBox.style.display  = 'none';
-      errorBox.style.display   = 'none';
-      ocrTextDiv.style.display = 'none';
-      errorMsg.textContent     = '';
-
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = reader.result.split(',')[1];
-        try {
-          const res = await fetch(ENDPOINT, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: base64 })
-          });
-          let data = await res.json().catch(async ()=> {
-            throw new Error('서버 응답 파싱 실패: '+ await res.text());
-          });
-
-          if (data.rawText) {
-            ocrTextDiv.textContent = data.rawText;
-            ocrTextDiv.style.display = 'block';
-          }
-
-          if (!res.ok) {
-            errorMsg.textContent = data.error || `서버 오류 (${res.status})`;
-            errorBox.style.display = 'block';
-          } else {
-            // 1..10번 O/X 테이블
-            const wrongArr = data.wrong
-              ? data.wrong.split(',').map(x=>x.trim())
-              : [];
-            const wrapper = document.getElementById('gradeTable');
-            wrapper.innerHTML = '';
-            const tbl = document.createElement('table');
-            tbl.className = 'grade-table';
-            // header
-            const head = document.createElement('tr');
-            for (let i=1; i<=10; i++){
-              const th = document.createElement('th');
-              th.textContent = i;
-              head.appendChild(th);
-            }
-            tbl.appendChild(head);
-            // row
-            const row = document.createElement('tr');
-            for (let i=1; i<=10; i++){
-              const td = document.createElement('td');
-              if (wrongArr.includes(String(i))) {
-                td.textContent = 'X';
-                td.className = 'incorrect';
-              } else {
-                td.textContent = 'O';
-                td.className = 'correct';
-              }
-              row.appendChild(td);
-            }
-            tbl.appendChild(row);
-            wrapper.appendChild(tbl);
-
-            document.getElementById('score').textContent = data.score || '0점';
-            document.getElementById('advice').textContent = data.advice || '—';
-            resultBox.style.display = 'block';
-          }
-        } catch (err) {
-          console.error('채점 에러:', err);
-          errorMsg.textContent = err.message;
-          errorBox.style.display = 'block';
-        } finally {
-          loading.style.display = 'none';
-        }
-      };
-      reader.readAsDataURL(file);
+    // 7) DB에서 가져온 조언만 조합
+    let advice = '';
+    if (wrongList.length > 0) {
+      advice = wrongList
+        .map(no => `문제 ${no}번: ${adviceKey[no]}`)
+        .join('\n');
     }
-  </script>
 
-</body>
-</html>
+    // 8) 결과 반환
+    return res.json({
+      wrong: wrongList.join(', '),
+      score: scoreText,
+      advice
+    });
+
+  } catch (err) {
+    console.error('💥 /grade 예외:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.listen(3000, () => console.log('✅ grading server on port 3000'));
