@@ -11,48 +11,62 @@
     #preview { display: none; margin: 1rem auto; border: 2px solid #ddd; border-radius:4px; width: 25%; height: auto; }
     #ocrText { display: none; white-space: pre-wrap; background: #fff; padding: 1rem; margin: 1rem auto; max-width: 80%; border: 1px solid #ccc; text-align: left; }
     #loading { display: none; color: #555; margin: 1rem; }
-    #result, #error { display: none; text-align: left; margin: 2rem auto; width: 90%; max-width: 400px; border-radius: 8px; padding: 1rem; }
-    #result { background: #e6fffa; border: 1px solid #b2f5ea; }
+    #result, #error { display: none; text-align: left; margin: 2rem auto; width: 90%; max-width: 600px; border-radius: 8px; padding: 1rem; background: #e6fffa; border: 1px solid #b2f5ea; }
     #error  { background: #ffe6e6; border: 1px solid #feb2b2; color: #c53030; }
     .section { margin-bottom: 1rem; }
     .section-title { font-weight: bold; margin-bottom: .5rem; }
-    /* 채점표 테이블 스타일 */
-    table.grade-table { border-collapse: collapse; margin: 0 auto; }
+
+    /* 래퍼: 테이블이 넘칠 때 가로 스크롤 */
+    .table-wrapper {
+      overflow-x: auto;
+      width: 100%;
+    }
+
+    /* 반응형 채점표 테이블 */
+    table.grade-table {
+      border-collapse: collapse;
+      margin: 0 auto;
+      width: 100%;
+      max-width: 100%;
+      table-layout: fixed;
+    }
     table.grade-table th, table.grade-table td {
       border: 1px solid #ccc;
-      padding: 6px 10px;
-      width: 32px;
+      padding: 6px 4px;
+      width: calc(100%/10);
       text-align: center;
+      word-break: break-all;
     }
     table.grade-table th { background: #f0f0f0; }
     table.grade-table td.correct { color: blue; font-weight: bold; }
     table.grade-table td.incorrect { color: red; font-weight: bold; }
-    /* AI 조언 줄바꿈 */
     #advice { white-space: pre-wrap; }
 
-@media print {
-  /* 1) 화면의 모든 요소 숨기기 */
-  body > * { display: none !important; }
-
-  /* 2) #result 컨테이너만 보이게 */
-  #result { 
-    display: block !important;
-    position: absolute;
-    top: 0; left: 0; width: 100%;
-  }
-
-  /* 3) #result 내부의 요소들은 원래 display 종류를 유지 */
-  #result *,
-  #result table,
-  #result thead,
-  #result tbody,
-  #result tr,
-  #result th,
-  #result td {
-    display: initial !important;
-  }
-}
-
+    /* 인쇄용 페이지 설정 */
+    @page {
+      size: A4 portrait;
+      margin: 10mm;
+    }
+    @media print {
+      /* 인쇄 시, 화면 요소 숨기기 */
+      body > * { display: none !important; }
+      /* 결과 영역만 보이게 */
+      #result {
+        display: block !important;
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%;
+        zoom: 0.75; /* 필요 시 인쇄 축소 비율 조정 */
+      }
+      /* 결과 내부 요소 원래 display 복원 */
+      #result, #result * {
+        display: initial !important;
+      }
+      /* 테이블 너비 100% */
+      table.grade-table {
+        width: 100% !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -72,7 +86,7 @@
   <div id="result">
     <div class="section">
       <div class="section-title">📊 채점표</div>
-      <div id="gradeTable"></div>
+      <div class="table-wrapper" id="gradeTable"></div>
     </div>
     <div class="section"><div class="section-title">🎯 점수</div><div id="score">—</div></div>
     <div class="section"><div class="section-title">📝 AI 조언</div><div id="advice">—</div></div>
@@ -80,7 +94,6 @@
 
   <script>
     const ENDPOINT = 'https://68744ad1-8dba-41d6-9c56-4a5aa4062eb2-00-2w8umvmvho639.sisko.replit.dev/grade';
-
     const fileUpload = document.getElementById('fileUpload');
     const printBtn   = document.getElementById('printBtn');
     const preview    = document.getElementById('preview');
@@ -90,24 +103,18 @@
     const errorBox   = document.getElementById('error');
     const errorMsg   = document.getElementById('errorMsg');
 
-    // 파일 업로드 버튼
     fileUpload.addEventListener('change', e => {
       const file = e.target.files[0];
       if (!file) return;
       preview.src = URL.createObjectURL(file);
       preview.style.display = 'block';
       handleFile(file);
-      // 같은 파일 재선택 시 change 이벤트가 안 일어나므로 값을 리셋
       fileUpload.value = '';
     });
 
-    // 인쇄 버튼
-    printBtn.addEventListener('click', () => {
-      window.print();
-    });
+    printBtn.addEventListener('click', () => window.print());
 
     async function handleFile(file) {
-      // 초기화
       loading.style.display    = 'block';
       resultBox.style.display  = 'none';
       errorBox.style.display   = 'none';
@@ -123,15 +130,9 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ image: base64 })
           });
-          let data;
-          try {
-            data = await res.json();
-          } catch {
-            const txt = await res.text();
-            console.error('⚠️ JSON 파싱 오류, raw:', txt);
-            throw new Error('서버 응답을 파싱할 수 없습니다.');
-          }
-          console.log('🛰️ 응답 전체:', res.status, data);
+          let data = await res.json().catch(async ()=> {
+            throw new Error('서버 응답 파싱 실패: '+ await res.text());
+          });
 
           if (data.rawText) {
             ocrTextDiv.textContent = data.rawText;
@@ -142,25 +143,25 @@
             errorMsg.textContent = data.error || `서버 오류 (${res.status})`;
             errorBox.style.display = 'block';
           } else {
-            // 1..10번 O/X 테이블 생성
+            // 1..10번 O/X 테이블
             const wrongArr = data.wrong
-              ? data.wrong.split(',').map(x => x.trim())
+              ? data.wrong.split(',').map(x=>x.trim())
               : [];
-            const gradeDiv = document.getElementById('gradeTable');
-            gradeDiv.innerHTML = '';
+            const wrapper = document.getElementById('gradeTable');
+            wrapper.innerHTML = '';
             const tbl = document.createElement('table');
             tbl.className = 'grade-table';
             // header
-            const headRow = document.createElement('tr');
-            for (let i = 1; i <= 10; i++) {
+            const head = document.createElement('tr');
+            for (let i=1; i<=10; i++){
               const th = document.createElement('th');
               th.textContent = i;
-              headRow.appendChild(th);
+              head.appendChild(th);
             }
-            tbl.appendChild(headRow);
-            // data row
-            const dataRow = document.createElement('tr');
-            for (let i = 1; i <= 10; i++) {
+            tbl.appendChild(head);
+            // row
+            const row = document.createElement('tr');
+            for (let i=1; i<=10; i++){
               const td = document.createElement('td');
               if (wrongArr.includes(String(i))) {
                 td.textContent = 'X';
@@ -169,19 +170,17 @@
                 td.textContent = 'O';
                 td.className = 'correct';
               }
-              dataRow.appendChild(td);
+              row.appendChild(td);
             }
-            tbl.appendChild(dataRow);
-            gradeDiv.appendChild(tbl);
+            tbl.appendChild(row);
+            wrapper.appendChild(tbl);
 
-            // 점수
             document.getElementById('score').textContent = data.score || '0점';
-            // AI 조언
             document.getElementById('advice').textContent = data.advice || '—';
             resultBox.style.display = 'block';
           }
         } catch (err) {
-          console.error('🔴 채점 에러:', err);
+          console.error('채점 에러:', err);
           errorMsg.textContent = err.message;
           errorBox.style.display = 'block';
         } finally {
