@@ -160,52 +160,51 @@
       reader.readAsDataURL(file);
     }
     
-function printResult() {
-  // 1) 인쇄할 콘텐츠: #result 영역만
-  const content = document.getElementById('result').outerHTML;
-
-  // 2) 새 창 열기
-  const printWindow = window.open('', '_blank', 'width=400,height=400');
-
-  // 3) HTML 머리말과 스타일(인쇄 전용 CSS 포함)
-  printWindow.document.write(`
-    <html>
-      <head>
-        <title>인쇄 미리보기</title>
-        <style>
-          /* 용지 크기 + 여백 설정 (80×80mm, 2mm 여백) */
-          @page { size: 80mm 80mm; margin: 2mm; }
-          html, body {
-            width: 80mm; height: 80mm;
-            margin: 0; padding: 0;
-            font-family: sans-serif;
-          }
-          #result {
-            box-sizing: border-box;
-            width: 100%; height: 100%;
-            padding: 0;
-            overflow: hidden;
-          }
-          /* 여기 원하는 추가 CSS (폰트 크기, 색상 등) */
-          #wrong, #score, #advice {
-            margin-bottom: 0.5em;
-            font-size: 12pt;
-          }
-        </style>
-      </head>
-      <body>
-        ${content}
-      </body>
-    </html>
-  `);
-
-  printWindow.document.close();
-  printWindow.focus();
-  // 4) 인쇄 대화상자 호출
-  printWindow.print();
-  // 5) 인쇄 후 창 닫기 (선택)
-  printWindow.close();
-}
+    // ——— 인쇄용 팝업 함수 ———
+    function printResult() {
+      const content = document.getElementById('result').outerHTML;
+      const printWindow = window.open('', '_blank', 'width=300,height=300');
+      printWindow.document.open();
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html lang="ko">
+        <head>
+          <meta charset="UTF-8">
+          <title>인쇄 미리보기</title>
+          <style>
+            @page { size: 80mm 80mm; margin: 2mm; }
+            html, body {
+              width: 80mm; height: 80mm;
+              margin: 0; padding: 0;
+              font-family: sans-serif;
+            }
+            #result {
+              box-sizing: border-box;
+              width: 100%; height: 100%;
+              padding: 0;
+              overflow: hidden;
+            }
+            /* 추가 스타일 조정 가능 */
+            #wrong, #score, #advice {
+              margin-bottom: 0.5em;
+              font-size: 12pt;
+            }
+          </style>
+        </head>
+        <body>
+          ${content}
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      // 인쇄가 로드 완료된 후 호출
+      printWindow.onload = () => {
+        printWindow.print();
+        // 창을 자동으로 닫고 싶으면 아래 주석 해제
+        // setTimeout(() => printWindow.close(), 100);
+      };
+    }
   </script>
 
 </body>
