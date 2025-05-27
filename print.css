@@ -1,8 +1,4 @@
-/* 80×80 mm 용지, 여백 2 mm 고정 */
-@page {
-  size: 80mm 80mm;
-  margin: 2mm;
-}
+
 
 @media print {
   /* 페이지 전체를 꽉 채우되, 2 mm 여백 안에서만 */
