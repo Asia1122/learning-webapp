@@ -1,33 +1,25 @@
-/* 용지 여백 없애기 */
+/* 80×80 mm 용지, 여백 2 mm 고정 */
 @page {
   size: 80mm 80mm;
-  margin: 0;
+  margin: 2mm;
 }
-/* 인쇄 모드에서 result 박스 전체를 꽉 채우도록 */
+
 @media print {
+  /* 페이지 영역을 꽉 채우되, 2 mm 여백 안에서만 찍히도록 */
   html, body {
-    width: 80mm;
-    height: 80mm;
-    margin: 0;
-    padding: 0;
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
   }
   #result {
     position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    padding: 4mm; /* 용지 가장자리 여백 */
-    box-sizing: border-box;
-    overflow: hidden;
+    top: 2mm;    /* 여백 */
+    left: 2mm;   /* 여백 */
+    width:  calc(100% - 4mm);
+    height: calc(100% - 4mm);
+    overflow: hidden;  /* 절대 넘치지 않도록 */
   }
-  /* 폰트 사이즈는 JS로 동적으로 조율 */
-}
-  /* AI 조언 영역을 남은 공간 전부 차지하게 */
-  #advice {
-    display: block;
-    height: calc(100% - 4rem); /* 위아래 다른 섹션 높이만큼 빼고 */
-    overflow: visible;
-    font-size: 12pt;    /* 인쇄용으로 조금 키워도 좋습니다 */
-    line-height: 1.4;
+  /* 나머지 영역(ocrText, preview, error 등)은 인쇄되지 않게 */
+  #preview, #ocrText, #error, button, input, #loading {
+    display: none !important;
   }
-  /* 필요하다면 다른 섹션(.section-title, #score 등)의 크기도 조정 가능 */
 }
