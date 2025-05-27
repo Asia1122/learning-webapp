@@ -35,25 +35,7 @@
     table.grade-table td.correct { color: blue; font-weight: bold; }
     table.grade-table td.incorrect { color: red; font-weight: bold; }
     #advice { white-space: pre-wrap; }
-
-    @page { size: A4 portrait; margin: 10mm; }
-    @media print {
-      body > * { display: none !important; }
-      #result {
-        display: block !important;
-        position: absolute; top: 0; left: 0; width: 100%;
-      }
-      #result .section {
-        display: block !important;
-        margin-bottom: 1rem !important;
-      }
-      #gradeTable table {
-        display: table !important; width: 100% !important;
-        border-collapse: collapse !important;
-      }
-      #gradeTable th, #gradeTable td { display: table-cell !important; }
-      #advice { white-space: pre-wrap !important; }
-    }
+   
   </style>
   <link rel="stylesheet" href="print.css" media="print">
 </head>
