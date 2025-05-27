@@ -1,25 +1,42 @@
-/* 80×80 mm 용지, 여백 2 mm 고정 */
+/* 80×80 mm 용지, 여백 2 mm 고정 */
 @page {
   size: 80mm 80mm;
   margin: 2mm;
 }
 
 @media print {
-  /* 페이지 영역을 꽉 채우되, 2 mm 여백 안에서만 찍히도록 */
+  /* 페이지 전체를 꽉 채우되, 2 mm 여백 안에서만 */
   html, body {
-    margin: 0; padding: 0;
-    width: 100%; height: 100%;
+    margin: 0;
+    padding: 0;
+    width: 80mm;
+    height: 80mm;
   }
+
+  /* 채점 결과만 인쇄 */
+  #preview,
+  #ocrText,
+  #error,
+  .button,
+  input,
+  #loading {
+    display: none !important;
+  }
+
+  /* 결과 영역 */
   #result {
     position: absolute;
-    top: 2mm;    /* 여백 */
-    left: 2mm;   /* 여백 */
+    top: 2mm;
+    left: 2mm;
     width:  calc(100% - 4mm);
     height: calc(100% - 4mm);
-    overflow: hidden;  /* 절대 넘치지 않도록 */
+    overflow: hidden;          /* 절대 넘치지 않도록 */
+    box-sizing: border-box;
   }
-  /* 나머지 영역(ocrText, preview, error 등)은 인쇄되지 않게 */
-  #preview, #ocrText, #error, button, input, #loading {
-    display: none !important;
+
+  /* 내부 요소가 인쇄용지 분할되지 않도록 */
+  #result, #result * {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 }
