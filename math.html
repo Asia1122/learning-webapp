@@ -177,27 +177,22 @@
       };
       reader.readAsDataURL(file);
     }
-// 인쇄 직전에 폰트 크기 자동 조정
-  window.onbeforeprint = () => {
-    const container = document.getElementById('result');
-    // 1 mm ≈ 96px/25.4mm ≈ 3.78px
-    const mmToPx = mm => mm * 3.78;
-    // 인쇄 가능한 높이 = (80 mm – 2×2 mm 여백) 만큼
-    const printableHeight = mmToPx(80 - 4);
-    let fontSize = 16; // 시작 폰트 크기(px)
-    container.style.fontSize = fontSize + 'px';
-
-    // 컨테이너가 넘칠 때까지 1px씩 줄이기 (최소 6px)
-    while (container.scrollHeight > printableHeight && fontSize > 6) {
-      fontSize -= 1;
+    
+// 인쇄 전 폰트 크기 자동 조정
+    window.onbeforeprint = () => {
+      const container = document.getElementById('result');
+      const mmToPx = mm => mm * 3.78;
+      const printableHeight = mmToPx(80 - 4); // 80mm minus 2×2mm 여백
+      let fontSize = 16;
       container.style.fontSize = fontSize + 'px';
-    }
-  };
-
-  // 인쇄 후 폰트 크기 원상 복구
-  window.onafterprint = () => {
-    document.getElementById('result').style.fontSize = '';
-  };
+      while (container.scrollHeight > printableHeight && fontSize > 6) {
+        fontSize--;
+        container.style.fontSize = fontSize + 'px';
+      }
+    };
+    window.onafterprint = () => {
+      document.getElementById('result').style.fontSize = '';
+    };
   </script>
 
 </body>
