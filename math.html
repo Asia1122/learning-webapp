@@ -45,7 +45,7 @@
 
   <input type="file" accept="image/*" id="fileUpload" style="display:none"/>
   <button class="button" onclick="fileUpload.click()">📸 사진 찍기 또는 업로드</button>
-  <button class="button" id="printBtn">🖨️ 인쇄하기</button>
+  <button class="button" onclick="printResult()">🖨️ 인쇄</button>
 
   <img id="preview" alt="업로드된 이미지"/>
 
@@ -160,21 +160,52 @@
       reader.readAsDataURL(file);
     }
     
-// 인쇄 전 폰트 크기 자동 조정
-    window.onbeforeprint = () => {
-      const container = document.getElementById('result');
-      const mmToPx = mm => mm * 3.78;
-      const printableHeight = mmToPx(80 - 4); // 80mm minus 2×2mm 여백
-      let fontSize = 16;
-      container.style.fontSize = fontSize + 'px';
-      while (container.scrollHeight > printableHeight && fontSize > 6) {
-        fontSize--;
-        container.style.fontSize = fontSize + 'px';
-      }
-    };
-    window.onafterprint = () => {
-      document.getElementById('result').style.fontSize = '';
-    };
+function printResult() {
+  // 1) 인쇄할 콘텐츠: #result 영역만
+  const content = document.getElementById('result').outerHTML;
+
+  // 2) 새 창 열기
+  const printWindow = window.open('', '_blank', 'width=400,height=400');
+
+  // 3) HTML 머리말과 스타일(인쇄 전용 CSS 포함)
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>인쇄 미리보기</title>
+        <style>
+          /* 용지 크기 + 여백 설정 (80×80mm, 2mm 여백) */
+          @page { size: 80mm 80mm; margin: 2mm; }
+          html, body {
+            width: 80mm; height: 80mm;
+            margin: 0; padding: 0;
+            font-family: sans-serif;
+          }
+          #result {
+            box-sizing: border-box;
+            width: 100%; height: 100%;
+            padding: 0;
+            overflow: hidden;
+          }
+          /* 여기 원하는 추가 CSS (폰트 크기, 색상 등) */
+          #wrong, #score, #advice {
+            margin-bottom: 0.5em;
+            font-size: 12pt;
+          }
+        </style>
+      </head>
+      <body>
+        ${content}
+      </body>
+    </html>
+  `);
+
+  printWindow.document.close();
+  printWindow.focus();
+  // 4) 인쇄 대화상자 호출
+  printWindow.print();
+  // 5) 인쇄 후 창 닫기 (선택)
+  printWindow.close();
+}
   </script>
 
 </body>
