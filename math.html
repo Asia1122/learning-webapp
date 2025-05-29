@@ -3,45 +3,27 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>📝 학습지 자동 채점</title>
+  <title>📝 학습지 자동 채점 (디버깅 모드)</title>
   <style>
     body { font-family: sans-serif; text-align: center; padding: 2rem; background: #f5f5f5; }
-    h1 { margin-bottom: 1rem; }
-    .button { font-size: 1.1rem; padding: .75rem 1.5rem; margin: .5rem; cursor: pointer; border:none; border-radius:4px; background:#3182ce; color:#fff; }
-    #preview { display: none; margin: 1rem auto; border: 2px solid #ddd; border-radius:4px; width: 25%; height: auto; }
+    .button { font-size: 1.1rem; padding: .75rem 1.5rem; margin: 1rem; cursor: pointer; border:none; border-radius:4px; background:#3182ce; color:#fff; }
+    #preview { display: none; max-width: 80%; margin: 1rem auto; border: 2px solid #ddd; border-radius:4px; }
     #ocrText { display: none; white-space: pre-wrap; background: #fff; padding: 1rem; margin: 1rem auto; max-width: 80%; border: 1px solid #ccc; text-align: left; }
     #loading { display: none; color: #555; margin: 1rem; }
-    #result, #error { display: none; text-align: left; margin: 2rem auto; width: 90%; max-width: 600px; border-radius: 8px; padding: 1rem; }
+    #result, #error { display: none; text-align: left; margin: 2rem auto; width: 90%; max-width: 400px; border-radius: 8px; padding: 1rem; }
     #result { background: #e6fffa; border: 1px solid #b2f5ea; }
     #error  { background: #ffe6e6; border: 1px solid #feb2b2; color: #c53030; }
     .section { margin-bottom: 1rem; }
     .section-title { font-weight: bold; margin-bottom: .5rem; }
-
-    .table-wrapper { overflow-x: auto; width: 100%; }
-    table.grade-table {
-      border-collapse: collapse;
-      margin: 0 auto;
-      width: 100%; max-width: 100%;
-      table-layout: fixed;
-    }
-    table.grade-table th, table.grade-table td {
-      border: 1px solid #ccc;
-      padding: 6px 4px;
-      width: calc(100%/10);
-      text-align: center;
-      word-break: break-all;
-    }
-    table.grade-table th { background: #f0f0f0; }
-    table.grade-table td.correct { color: blue; font-weight: bold; }
-    table.grade-table td.incorrect { color: red; font-weight: bold; }
-    #advice { white-space: pre-wrap; }
-   
+    pre { white-space: pre-wrap; word-break: break-word; font-size:0.9rem; }
+    #wrong, #advice { white-space: pre-wrap; }
   </style>
-  <link rel="stylesheet" href="print.css" media="print">
+  <!-- html2canvas CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
 
-  <h1>📝 학습지 자동 채점</h1>
+  <h1>📝 학습지 자동 채점 (디버깅 모드)</h1>
 
   <input type="file" accept="image/*" id="fileUpload" style="display:none"/>
   <button class="button" onclick="fileUpload.click()">📸 사진 찍기 또는 업로드</button>
@@ -54,18 +36,15 @@
   <div id="loading">채점 중… ⏳</div>
   <div id="error"><div class="section-title">🚨 에러 메시지</div><pre id="errorMsg"></pre></div>
   <div id="result">
-    <div class="section">
-      <div class="section-title">📊 채점표</div>
-      <div class="table-wrapper" id="gradeTable"></div>
-    </div>
+    <div class="section"><div class="section-title">❌ 틀린 문제</div><div id="wrong">—</div></div>
     <div class="section"><div class="section-title">🎯 점수</div><div id="score">—</div></div>
     <div class="section"><div class="section-title">📝 AI 조언</div><div id="advice">—</div></div>
   </div>
 
   <script>
-    const ENDPOINT = 'https://68744ad1-8dba-41d6-9c56-4a5aa4062eb2-00-2w8umvmvho639.sisko.replit.dev/grade';
+    const ENDPOINT = 'https://YOUR-REPLIT-URL/grade';
+
     const fileUpload = document.getElementById('fileUpload');
-    const printBtn   = document.getElementById('printBtn');
     const preview    = document.getElementById('preview');
     const ocrTextDiv = document.getElementById('ocrText');
     const loading    = document.getElementById('loading');
@@ -79,10 +58,7 @@
       preview.src = URL.createObjectURL(file);
       preview.style.display = 'block';
       handleFile(file);
-      fileUpload.value = '';
     });
-
-    printBtn.addEventListener('click', () => window.print());
 
     async function handleFile(file) {
       loading.style.display    = 'block';
@@ -100,12 +76,10 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ image: base64 })
           });
-          let data = await res.json().catch(async () => {
-            throw new Error('서버 응답 파싱 실패: ' + await res.text());
-          });
+          const data = await res.json();
 
-          if (data.rawText) {
-            ocrTextDiv.textContent = data.rawText;
+          if (data.rawText !== undefined) {
+            ocrTextDiv.textContent  = data.rawText;
             ocrTextDiv.style.display = 'block';
           }
 
@@ -113,44 +87,12 @@
             errorMsg.textContent = data.error || `서버 오류 (${res.status})`;
             errorBox.style.display = 'block';
           } else {
-            // 1..10번 O/X 테이블
-            const wrongArr = data.wrong
-              ? data.wrong.split(',').map(x => x.trim())
-              : [];
-            const wrapper = document.getElementById('gradeTable');
-            wrapper.innerHTML = '';
-            const tbl = document.createElement('table');
-            tbl.className = 'grade-table';
-            // header
-            const head = document.createElement('tr');
-            for (let i = 1; i <= 10; i++) {
-              const th = document.createElement('th');
-              th.textContent = i;
-              head.appendChild(th);
-            }
-            tbl.appendChild(head);
-            // row
-            const row = document.createElement('tr');
-            for (let i = 1; i <= 10; i++) {
-              const td = document.createElement('td');
-              if (wrongArr.includes(String(i))) {
-                td.textContent = 'X';
-                td.className = 'incorrect';
-              } else {
-                td.textContent = 'O';
-                td.className = 'correct';
-              }
-              row.appendChild(td);
-            }
-            tbl.appendChild(row);
-            wrapper.appendChild(tbl);
-
-            document.getElementById('score').textContent = data.score || '0점';
+            document.getElementById('wrong').textContent  = data.wrong  || '없음';
+            document.getElementById('score').textContent  = data.score  || '0';
             document.getElementById('advice').textContent = data.advice || '—';
             resultBox.style.display = 'block';
           }
         } catch (err) {
-          console.error('채점 에러:', err);
           errorMsg.textContent = err.message;
           errorBox.style.display = 'block';
         } finally {
@@ -159,26 +101,49 @@
       };
       reader.readAsDataURL(file);
     }
-    
-// 인쇄 전 폰트 크기 자동 조정
-    window.onbeforeprint = () => {
-      const container = document.getElementById('result');
-      const mmToPx = mm => mm * 3.78;
-      const printableHeight = mmToPx(80 - 2 * 1); // 80mm – (1mm×2)
-      let fontSize = 16;
-      container.style.fontSize = fontSize + 'px';
-      while (container.scrollHeight > printableHeight && fontSize > 6) {
-        fontSize--;
-        container.style.fontSize = fontSize + 'px';
-      }
-    };
-    window.onafterprint = () => {
-      document.getElementById('result').style.fontSize = '';
-    };
 
-    // 같은 페이지에서 바로 인쇄
-    function printResult() {
-      window.print();
+    // ——— 인쇄 함수 (html2canvas 사용) ———
+    async function printResult() {
+      const el = document.getElementById('result');
+      // 배경 색상까지 캡처하기 위해 white로 채움
+      el.style.backgroundColor = '#ffffff';
+
+      // 캡처
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true
+      });
+
+      // dataURL 생성
+      const dataURL = canvas.toDataURL('image/png');
+      // 새 탭이 아닌 same window에서 인쇄 (팝업 금지 설정 대응)
+      const win = window.open();
+      win.document.write(`
+        <html>
+          <head>
+            <title>인쇄 미리보기</title>
+            <style>
+              @page { size: 80mm 80mm; margin: 0; }
+              html, body {
+                margin: 0; padding: 0;
+                width: 80mm; height: 80mm;
+              }
+              img {
+                width: 100%; height: 100%;
+                object-fit: cover;
+              }
+            </style>
+          </head>
+          <body>
+            <img src="${dataURL}" />
+            <script>
+              window.onload = () => { window.print(); window.close(); };
+            <\/script>
+          </body>
+        </html>
+      `);
+      win.document.close();
     }
   </script>
 
