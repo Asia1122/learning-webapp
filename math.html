@@ -5,15 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>📝 학습지 자동 채점</title>
 
+  <!-- 1) 화면용 스타일 (기존 코드 그대로) -->
   <style>
-    /* ─ 화면용 스타일 ─ */
     body { font-family: sans-serif; text-align: center; padding: 2rem; background: #f5f5f5; }
     h1 { margin-bottom: 1rem; }
     .button { font-size: 1.1rem; padding: .75rem 1.5rem; margin: .5rem; cursor: pointer; border:none; border-radius:4px; background:#3182ce; color:#fff; }
     #preview { display: none; margin: 1rem auto; border: 2px solid #ddd; border-radius:4px; width: 25%; }
+    #ocrText { display: none; white-space: pre-wrap; background: #fff; padding: 1rem; margin: 1rem auto; max-width: 80%; border: 1px solid #ccc; text-align: left; }
     #loading { display: none; color: #555; margin: 1rem; }
-    #error, #result { display: none; margin: 2rem auto; width: 90%; max-width: 600px; text-align: left; padding: 1rem; border-radius:8px; }
-    #error { background: #ffe6e6; border: 1px solid #feb2b2; color: #c53030; }
+    #error, #result { display: none; text-align: left; margin: 2rem auto; width: 90%; max-width: 600px; border-radius: 8px; padding: 1rem; }
+    #error  { background: #ffe6e6; border: 1px solid #feb2b2; color: #c53030; }
     #result { background: #e6fffa; border: 1px solid #b2f5ea; }
     .section { margin-bottom: 1rem; }
     .section-title { font-weight: bold; margin-bottom: .5rem; }
@@ -25,8 +26,7 @@
       table-layout: fixed;
       margin-bottom: 1rem;
     }
-    table.grade-table th,
-    table.grade-table td {
+    table.grade-table th, table.grade-table td {
       border: 1px solid #ccc;
       padding: 4px;
       text-align: center;
@@ -36,33 +36,13 @@
     table.grade-table th { background: #f0f0f0; }
     table.grade-table td.correct   { color: blue;  font-weight: bold; }
     table.grade-table td.incorrect { color: red;   font-weight: bold; }
+
     #score  { font-size: 1.2rem; font-weight: bold; }
     #advice { white-space: pre-wrap; font-size: 0.9rem; }
   </style>
 
-  <!-- ─ 인쇄 전용 스타일 ─ -->
-  <style media="print">
-    @page { size: 80mm 80mm; margin: 0; }
-    /* 화면의 모든 것을 숨기되… */
-    body > *:not(#result) { display: none !important; }
-    /* #result만 보이게 */
-    #result {
-      display: block !important;
-      position: absolute;
-      top: 0; left: 0;
-      width: 80mm; height: 80mm;
-      box-sizing: border-box;
-      padding: 4mm;
-      overflow: hidden;
-    }
-    /* 테이블 레이아웃 복원 */
-    #result table { display: table !important; width: 100%; border-collapse: collapse; }
-    #result thead, #result tbody { display: table-row-group !important; }
-    #result tr { display: table-row !important; }
-    #result th, #result td { display: table-cell !important; }
-    /* 자동 축소: print 영역이 80×80mm 를 벗어나면 85% 로 강제 축소 */
-    #result { zoom: 85%; /* IE/Chrome 한정, 다른 브라우저는 @page scale 불가 */ }
-  </style>
+  <!-- 2) 인쇄 전용 스타일: 오직 이 부분만 조정 -->
+  <link rel="stylesheet" href="print.css" media="print">
 </head>
 <body>
 
@@ -74,28 +54,25 @@
 
   <img id="preview" alt="업로드된 이미지"/>
 
+  <div id="ocrText"></div>
   <div id="loading">채점 중… ⏳</div>
-  <div id="error"><div class="section-title">🚨 에러</div><pre id="errorMsg"></pre></div>
-
+  <div id="error"><div class="section-title">🚨 에러 메시지</div><pre id="errorMsg"></pre></div>
   <div id="result">
     <div class="section">
       <div class="section-title">📊 채점표</div>
       <div class="table-wrapper" id="gradeTable"></div>
     </div>
-    <div class="section">
-      <div class="section-title">🎯 점수</div>
-      <div id="score">—</div>
-    </div>
-    <div class="section">
-      <div class="section-title">📝 AI 조언</div>
-      <div id="advice">—</div>
-    </div>
+    <div class="section"><div class="section-title">🎯 점수</div><div id="score">—</div></div>
+    <div class="section"><div class="section-title">📝 AI 조언</div><div id="advice">—</div></div>
   </div>
 
+  <!-- 3) grading 로직: 절대 손대지 마세요! -->
   <script>
-    const ENDPOINT   = 'https://68744ad1-8dba-41d6-9c56-4a5aa4062eb2-00-2w8umvmvho639.sisko.replit.dev/grading/grade';
+    const ENDPOINT = 'https://68744ad1-8dba-41d6-9c56-4a5aa4062eb2-00-2w8umvmvho639.sisko.replit.dev/grading/grade';
+
     const fileUpload = document.getElementById('fileUpload');
     const preview    = document.getElementById('preview');
+    const ocrTextDiv = document.getElementById('ocrText');
     const loading    = document.getElementById('loading');
     const errorBox   = document.getElementById('error');
     const errorMsg   = document.getElementById('errorMsg');
@@ -114,13 +91,16 @@
     });
 
     async function handleFile(file) {
-      loading.style.display   = 'block';
-      resultBox.style.display = 'none';
-      errorBox.style.display  = 'none';
-      tableWrap.innerHTML     = '';
-      scoreEl.textContent     = '—';
-      adviceEl.textContent    = '—';
+      // 로직 1: 화면 초기화
+      ocrTextDiv.style.display = 'none';
+      loading.style.display    = 'block';
+      resultBox.style.display  = 'none';
+      errorBox.style.display   = 'none';
+      tableWrap.innerHTML      = '';
+      scoreEl.textContent      = '—';
+      adviceEl.textContent     = '—';
 
+      // 로직 2: base64 변환
       const base64 = await new Promise(r => {
         const fr = new FileReader();
         fr.onload = () => r(fr.result.split(',')[1]);
@@ -128,17 +108,28 @@
       });
 
       try {
+        // 로직 3: 서버 전송
         const res  = await fetch(ENDPOINT, {
           method: 'POST',
           headers: { 'Content-Type':'application/json' },
           body: JSON.stringify({ image: base64 })
         });
         const data = await res.json();
+
+        // 로직 4: 에러 처리
         if (!res.ok) throw new Error(data.error || `서버 오류 ${res.status}`);
 
-        buildTable(data.expectedAnswers, data.studentAnswers, data.wrongArr);
-        scoreEl.textContent = data.score || '—';
+        // 로직 5: OCR 원문
+        if (data.rawText) {
+          ocrTextDiv.textContent = data.rawText;
+          ocrTextDiv.style.display = 'block';
+        }
 
+        // 로직 6: 채점표 그리기
+        buildTable(data.expectedAnswers, data.studentAnswers, data.wrongArr || []);
+
+        // 로직 7: 점수·조언
+        scoreEl.textContent = data.score || '—';
         const adv = (data.wrongArr||[]).map(no => {
           const hint = data.adviceMap?.[no] || '';
           return `문제 ${no}번: ${hint}`;
@@ -157,7 +148,6 @@
     function buildTable(expected, studentAns, wrongArr) {
       const qs = Object.keys(expected||{}).map(Number).sort((a,b)=>a-b);
       if (!qs.length) return;
-
       const tbl = document.createElement('table');
       tbl.className = 'grade-table';
 
@@ -188,6 +178,5 @@
       tableWrap.appendChild(tbl);
     }
   </script>
-
 </body>
 </html>
