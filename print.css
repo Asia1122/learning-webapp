@@ -1,46 +1,38 @@
 /* print.css */
 @media print {
-  /* 1) 용지 크기 및 여백 0 */
+  /* 1) 용지 크기와 여백 0 */
   @page {
     size: 80mm 80mm;
     margin: 0;
-    /* CSS3 Paged Media: 머리말/꼬리말 모두 비우기 */
-    @top-left    { content: none; }
-    @top-center  { content: none; }
-    @top-right   { content: none; }
-    @bottom-left  { content: none; }
-    @bottom-center{ content: none; }
-    @bottom-right { content: none; }
   }
 
-  /* 2) 화면 요소 모두 숨기고, 결과 섹션만 보이기 */
+  /* 2) 전체 요소 숨기되, 결과 컨테이너만 보이기 */
   body * {
     visibility: hidden !important;
   }
-  #result,
+  #result, 
   #result * {
     visibility: visible !important;
   }
 
-  /* 3) #result 위치·크기 고정 */
+  /* 3) 결과 컨테이너를 용지 전체 크기로 고정 */
   #result {
-    position: absolute;
+    position: fixed;   /* fixed로 화면에 고정 */
     top: 0; left: 0;
-    width: 80mm;  height: 80mm;
-    padding: 0;  /* 내부 여백도 0 */
+    width: 100%;       /* 인쇄 가능한 전체 너비 */
+    height: 100%;      /* 인쇄 가능한 전체 높이 */
+    margin: 0;
+    padding: 0;
     box-sizing: border-box;
-    overflow: visible;
-    /* 콘텐츠 자체를 더 줄여서 꽉 채우기 */
-    transform-origin: top left;
-    transform: scale(0.4);
+    transform: none !important;  /* 이전 scale 해제 */
   }
 
-  /* 4) 채점표 영역 완전 숨기기 */
+  /* 4) 첫 번째 섹션(채점표) 완전히 숨기기 */
   #result > .section:first-child {
     display: none !important;
   }
 
-  /* 5) 테이블 레이아웃 복원 (혹시 남아있다면) */
+  /* 5) 테이블 레이아웃 복원(혹시 남아있다면) */
   #result table            { display: table !important; width: 100% !important; }
   #result thead, tbody     { display: table-row-group !important; }
   #result tr               { display: table-row !important; }
