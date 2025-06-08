@@ -1,60 +1,30 @@
 /* print.css */
 
-/* 80×80mm 용지, 여백 1mm 고정 */
 @page {
   size: 80mm 80mm;
   margin: 1mm;
 }
 
 @media print {
-  /* 페이지 전체 꽉 채우기 */
-  html, body {
-    margin: 0;
-    padding: 0;
-    width: 80mm;
-    height: 80mm;
-  }
-
-  /* 인쇄할 때 숨길 요소들 */
-  #preview,
-  #ocrText,
-  #loading,
-  #error,
-  .button,
-  input {
+  /* 화면의 모든 요소를 숨깁니다 */
+  body * {
     display: none !important;
   }
 
-  /* 결과 영역 flex 레이아웃 */
+  /* 오직 #result 섹션과 그 자식들만 보이도록 */
+  #result,
+  #result * {
+    display: block !important;
+  }
+
+  /* #result를 페이지 최상단에 고정해서 꽉 채우기 */
   #result {
-    display: flex;
-    flex-direction: column;
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
-    height: 100%;
-    margin: 0;
-    padding: 0.5mm;       /* 내부 약간의 여백 */
+    /* 필요하다면 높이도 지정 */
+    /* height: 100%; */
     box-sizing: border-box;
-    overflow: hidden;     /* 절대 넘치지 않도록 */
-  }
-
-  /* 틀린 문제, 점수는 고정 높이 */
-  #wrong, #score {
-    flex: 0 0 auto;
-    margin-bottom: 0.5em;
-  }
-
-  /* AI 조언은 남은 공간 모두 사용 */
-  #advice {
-    flex: 1 1 auto;
-    overflow: auto;       /* 내용이 많아도 넘치지 않고 스크롤 */
-    white-space: pre-wrap;/* 줄바꿈 유지 */
-    font-size: 12pt;      /* 인쇄용 폰트 크기 */
-    line-height: 1.4;
-  }
-
-  /* 페이지 분할 방지 */
-  #result, #result * {
-    break-inside: avoid;
-    page-break-inside: avoid;
   }
 }
