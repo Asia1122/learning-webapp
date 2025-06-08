@@ -6,53 +6,70 @@
   <title>📝 학습지 자동 채점</title>
   <style>
     body { font-family: sans-serif; text-align: center; padding: 2rem; background: #f5f5f5; }
-    .button { font-size: 1.1rem; padding: .75rem 1.5rem; margin: 1rem; cursor: pointer; 
-              border:none; border-radius:4px; background:#3182ce; color:#fff; }
-    #preview { max-width: 80%; margin: 1rem auto; border: 2px solid #ddd; border-radius:4px; }
-    #loading { display:none; color:#555; margin:1rem; }
-    #error { display:none; background:#ffe6e6; border:1px solid #feb2b2; color:#c53030;
-             max-width:400px; margin:1rem auto; padding:1rem; border-radius:8px; text-align:left; }
-    #result { display:none; max-width:800px; margin:2rem auto; text-align:left; }
-    table { width:100%; border-collapse:collapse; }
-    th, td { border:1px solid #ccc; padding:8px; font-size:0.9rem; }
-    th { background:#f0f0f0; }
-    .label-cell { background:#fafafa; font-weight:bold; text-align:center; }
-    #advice { white-space: pre-wrap; margin-top:1rem; padding:1rem; background:#e6fffa; 
-               border:1px solid #b2f5ea; border-radius:8px; text-align:left; }
+    h1 { margin-bottom: 1rem; }
+    .button { font-size: 1.1rem; padding: .75rem 1.5rem; margin: .5rem; cursor: pointer; border:none; border-radius:4px; background:#3182ce; color:#fff; }
+    #preview { display: none; margin: 1rem auto; border: 2px solid #ddd; border-radius:4px; width: 25%; height: auto; }
+    #ocrText { display: none; white-space: pre-wrap; background: #fff; padding: 1rem; margin: 1rem auto; max-width: 80%; border: 1px solid #ccc; text-align: left; }
+    #loading { display: none; color: #555; margin: 1rem; }
+    #result, #error { display: none; text-align: left; margin: 2rem auto; width: 90%; max-width: 600px; border-radius: 8px; padding: 1rem; }
+    #result { background: #e6fffa; border: 1px solid #b2f5ea; }
+    #error  { background: #ffe6e6; border: 1px solid #feb2b2; color: #c53030; }
+    .section { margin-bottom: 1rem; }
+    .section-title { font-weight: bold; margin-bottom: .5rem; }
+
+    .table-wrapper { overflow-x: auto; width: 100%; }
+    table.grade-table {
+      border-collapse: collapse;
+      margin: 0 auto;
+      width: 100%; max-width: 100%;
+      table-layout: fixed;
+    }
+    table.grade-table th, table.grade-table td {
+      border: 1px solid #ccc;
+      padding: 6px 4px;
+      text-align: center;
+      word-break: break-all;
+    }
+    table.grade-table th { background: #f0f0f0; }
+    table.grade-table td.correct  { color: blue;  font-weight: bold; }
+    table.grade-table td.incorrect{ color: red;   font-weight: bold; }
+    #advice { white-space: pre-wrap; }
   </style>
+  <link rel="stylesheet" href="print.css" media="print">
 </head>
 <body>
 
   <h1>📝 학습지 자동 채점</h1>
-  <input type="file" id="fileUpload" accept="image/*" style="display:none"/>
-  <button class="button" onclick="fileUpload.click()">📸 업로드</button>
+
+  <input type="file" accept="image/*" id="fileUpload" style="display:none"/>
+  <button class="button" onclick="fileUpload.click()">📸 사진 찍기 또는 업로드</button>
   <button class="button" onclick="printResult()">🖨️ 인쇄</button>
 
-  <img id="preview" alt="미리보기 이미지"/>
+  <img id="preview" alt="업로드된 이미지"/>
+
+  <div id="ocrText"></div>
 
   <div id="loading">채점 중… ⏳</div>
-  <div id="error"><pre id="errorMsg"></pre></div>
+  <div id="error"><div class="section-title">🚨 에러 메시지</div><pre id="errorMsg"></pre></div>
 
   <div id="result">
-    <!-- 동적으로 채워질 grading table -->
-    <div id="gradeTableContainer"></div>
-    <!-- 전체 점수 -->
-    <p style="font-size:1.2rem; font-weight:bold; margin-top:1rem;">
-      🎯 점수: <span id="score"></span>
-    </p>
-    <!-- AI 조언 -->
-    <div id="advice"></div>
+    <div class="section">
+      <div class="section-title">📊 채점표</div>
+      <div class="table-wrapper" id="gradeTable"></div>
+    </div>
+    <div class="section"><div class="section-title">🎯 점수</div><div id="score">—</div></div>
+    <div class="section"><div class="section-title">📝 AI 조언</div><div id="advice">—</div></div>
   </div>
 
   <script>
-    const ENDPOINT = 'https://YOUR-REPLIT-URL/grade';
+    const ENDPOINT = 'https://68744ad1-8dba-41d6-9c56-4a5aa4062eb2-00-2w8umvmvho639.sisko.replit.dev/grading/grade';
     const fileUpload = document.getElementById('fileUpload');
     const preview    = document.getElementById('preview');
     const loading    = document.getElementById('loading');
     const errorBox   = document.getElementById('error');
     const errorMsg   = document.getElementById('errorMsg');
     const resultBox  = document.getElementById('result');
-    const tableCont  = document.getElementById('gradeTableContainer');
+    const tableWrap  = document.getElementById('gradeTable');
     const scoreEl    = document.getElementById('score');
     const adviceEl   = document.getElementById('advice');
 
@@ -61,43 +78,59 @@
       if (!file) return;
       preview.src = URL.createObjectURL(file);
       preview.style.display = 'block';
-      doGrade(file);
+      handleFile(file);
+      fileUpload.value = '';
     });
 
-    async function doGrade(file) {
+    async function handleFile(file) {
       // 초기화
-      loading.style.display = 'block';
-      errorBox.style.display = 'none';
+      loading.style.display   = 'block';
       resultBox.style.display = 'none';
-      tableCont.innerHTML = '';
-      adviceEl.textContent = '';
-      scoreEl.textContent = '';
+      errorBox.style.display  = 'none';
+      tableWrap.innerHTML     = '';
+      scoreEl.textContent     = '—';
+      adviceEl.textContent    = '—';
 
+      // file → base64
       const base64 = await new Promise(r => {
         const fr = new FileReader();
-        fr.onload = () => r(fr.result.split(',')[1]);
+        fr.onload = ()=> r(fr.result.split(',')[1]);
         fr.readAsDataURL(file);
       });
 
       try {
-        const res = await fetch(ENDPOINT, {
+        const res  = await fetch(ENDPOINT, {
           method: 'POST',
-          headers:{'Content-Type':'application/json'},
+          headers:{ 'Content-Type':'application/json' },
           body: JSON.stringify({ image: base64 })
         });
         const data = await res.json();
-
         if (!res.ok) throw new Error(data.error || `서버 오류 ${res.status}`);
 
-        // data.questions: [{ no, correct, ans, result:true|false }, …]
-        // data.score: "80점"
-        // data.adviceMap: { "3":"힌트…", "7":"…" }
+        // 기대: data.expectedAnswers:{no:correct,...},
+        //        data.studentAnswers:{no:ans,...},
+        //        data.wrongArr: [no,...],
+        //        data.score: "80점",
+        //        data.adviceMap:{no:hint,...}
 
-        buildTable(data.questions);
-        scoreEl.textContent = data.score;
-        adviceEl.textContent = Object.entries(data.adviceMap || {})
-                                  .map(([no, txt])=>`문제 ${no}번: ${txt}`)
-                                  .join('\n') || '—';
+        // 1) 채점표 그리기
+        buildTable(
+          data.expectedAnswers,
+          data.studentAnswers,
+          data.wrongArr || []
+        );
+
+        // 2) 점수
+        scoreEl.textContent = data.score || '—';
+
+        // 3) AI조언: 틀린 문제만, DB에서 불러온 조언
+        const adv = (data.wrongArr || [])
+          .map(no => {
+            const hint = data.adviceMap?.[no] || '';
+            return `문제 ${no}번: ${hint}`;
+          })
+          .join('\n') || '—';
+        adviceEl.textContent = adv;
 
         resultBox.style.display = 'block';
 
@@ -109,43 +142,69 @@
       }
     }
 
-    function buildTable(questions) {
-      if (!questions || !questions.length) return;
-      const cols = questions.length;
-      // 테이블 생성
+    function buildTable(expected, studentAns, wrongArr) {
+      const questions = Object.keys(expected)
+                              .map(x=>Number(x))
+                              .sort((a,b)=>a-b);
+      if (!questions.length) return;
       const tbl = document.createElement('table');
-      // 헤더 행: 빈 첫 칸 + 문제번호
-      const tr1 = document.createElement('tr');
-      tr1.innerHTML = `<th class="label-cell">항목</th>` +
-        questions.map(q=>`<th>${q.no}번</th>`).join('');
-      tbl.append(tr1);
-      // 2행: 정답
-      const tr2 = document.createElement('tr');
-      tr2.innerHTML = `<th class="label-cell">정답</th>` +
-        questions.map(q=>`<td style="text-align:center">${q.correct}</td>`).join('');
-      tbl.append(tr2);
-      // 3행: 내 답
-      const tr3 = document.createElement('tr');
-      tr3.innerHTML = `<th class="label-cell">내 답</th>` +
-        questions.map(q=>`<td style="text-align:center">${q.ans}</td>`).join('');
-      tbl.append(tr3);
-      // 4행: 결과
-      const tr4 = document.createElement('tr');
-      tr4.innerHTML = `<th class="label-cell">결과</th>` +
-        questions.map(q=>{
-          return `<td style="text-align:center; color:${q.result?'blue':'red'}">
-                    ${q.result?'O':'X'}
-                  </td>`;
-        }).join('');
-      tbl.append(tr4);
+      tbl.className = 'grade-table';
 
-      tableCont.append(tbl);
+      // 1행: 문제번호
+      const tr1 = document.createElement('tr');
+      tr1.appendChild(labelCell('문제번호'));
+      questions.forEach(no=>{
+        tr1.appendChild(dataCell(no));
+      });
+      tbl.appendChild(tr1);
+
+      // 2행: 실제 정답
+      const tr2 = document.createElement('tr');
+      tr2.appendChild(labelCell('정답'));
+      questions.forEach(no=>{
+        tr2.appendChild(dataCell(expected[no]));
+      });
+      tbl.appendChild(tr2);
+
+      // 3행: 학생 답안
+      const tr3 = document.createElement('tr');
+      tr3.appendChild(labelCell('내 답'));
+      questions.forEach(no=>{
+        tr3.appendChild(dataCell(studentAns[no] ?? '—'));
+      });
+      tbl.appendChild(tr3);
+
+      // 4행: 결과 O/X
+      const tr4 = document.createElement('tr');
+      tr4.appendChild(labelCell('결과'));
+      questions.forEach(no=>{
+        const ok = !wrongArr.includes(no);
+        const td = dataCell(ok ? 'O' : 'X');
+        td.className = ok ? 'correct' : 'incorrect';
+        tr4.appendChild(td);
+      });
+      tbl.appendChild(tr4);
+
+      tableWrap.appendChild(tbl);
     }
 
-    // 인쇄
+    function labelCell(text) {
+      const th = document.createElement('th');
+      th.textContent = text;
+      th.className = 'label-cell';
+      return th;
+    }
+
+    function dataCell(txt) {
+      const td = document.createElement('td');
+      td.textContent = txt;
+      return td;
+    }
+
     function printResult() {
       window.print();
     }
   </script>
+
 </body>
 </html>
