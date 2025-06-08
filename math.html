@@ -4,8 +4,9 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>📝 학습지 자동 채점</title>
+
   <style>
-    /* --- 화면용 스타일 (변경 없음) --- */
+    /* ─ 화면용 스타일 ─ */
     body { font-family: sans-serif; text-align: center; padding: 2rem; background: #f5f5f5; }
     h1 { margin-bottom: 1rem; }
     .button { font-size: 1.1rem; padding: .75rem 1.5rem; margin: .5rem; cursor: pointer; border:none; border-radius:4px; background:#3182ce; color:#fff; }
@@ -24,7 +25,8 @@
       table-layout: fixed;
       margin-bottom: 1rem;
     }
-    table.grade-table th, table.grade-table td {
+    table.grade-table th,
+    table.grade-table td {
       border: 1px solid #ccc;
       padding: 4px;
       text-align: center;
@@ -32,10 +34,34 @@
       font-size: 0.85rem;
     }
     table.grade-table th { background: #f0f0f0; }
-    table.grade-table td.correct  { color: blue;  font-weight: bold; }
-    table.grade-table td.incorrect{ color: red;   font-weight: bold; }
-    #score { font-size: 1.2rem; font-weight: bold; }
-    #advice{ white-space: pre-wrap; font-size: 0.9rem; }
+    table.grade-table td.correct   { color: blue;  font-weight: bold; }
+    table.grade-table td.incorrect { color: red;   font-weight: bold; }
+    #score  { font-size: 1.2rem; font-weight: bold; }
+    #advice { white-space: pre-wrap; font-size: 0.9rem; }
+  </style>
+
+  <!-- ─ 인쇄 전용 스타일 ─ -->
+  <style media="print">
+    @page { size: 80mm 80mm; margin: 0; }
+    /* 화면의 모든 것을 숨기되… */
+    body > *:not(#result) { display: none !important; }
+    /* #result만 보이게 */
+    #result {
+      display: block !important;
+      position: absolute;
+      top: 0; left: 0;
+      width: 80mm; height: 80mm;
+      box-sizing: border-box;
+      padding: 4mm;
+      overflow: hidden;
+    }
+    /* 테이블 레이아웃 복원 */
+    #result table { display: table !important; width: 100%; border-collapse: collapse; }
+    #result thead, #result tbody { display: table-row-group !important; }
+    #result tr { display: table-row !important; }
+    #result th, #result td { display: table-cell !important; }
+    /* 자동 축소: print 영역이 80×80mm 를 벗어나면 85% 로 강제 축소 */
+    #result { zoom: 85%; /* IE/Chrome 한정, 다른 브라우저는 @page scale 불가 */ }
   </style>
 </head>
 <body>
@@ -44,7 +70,7 @@
 
   <input type="file" accept="image/*" id="fileUpload" style="display:none"/>
   <button class="button" onclick="fileUpload.click()">📸 사진 찍기 또는 업로드</button>
-  <button class="button" onclick="printResult()">🖨️ 인쇄</button>
+  <button class="button" onclick="window.print()">🖨️ 인쇄</button>
 
   <img id="preview" alt="업로드된 이미지"/>
 
@@ -52,13 +78,22 @@
   <div id="error"><div class="section-title">🚨 에러</div><pre id="errorMsg"></pre></div>
 
   <div id="result">
-    <div class="section"><div class="section-title">📊 채점표</div><div class="table-wrapper" id="gradeTable"></div></div>
-    <div class="section"><div class="section-title">🎯 점수</div><div id="score">—</div></div>
-    <div class="section"><div class="section-title">📝 AI 조언</div><div id="advice">—</div></div>
+    <div class="section">
+      <div class="section-title">📊 채점표</div>
+      <div class="table-wrapper" id="gradeTable"></div>
+    </div>
+    <div class="section">
+      <div class="section-title">🎯 점수</div>
+      <div id="score">—</div>
+    </div>
+    <div class="section">
+      <div class="section-title">📝 AI 조언</div>
+      <div id="advice">—</div>
+    </div>
   </div>
 
   <script>
-    const ENDPOINT = 'https://68744ad1-8dba-41d6-9c56-4a5aa4062eb2-00-2w8umvmvho639.sisko.replit.dev/grading/grade';
+    const ENDPOINT   = 'https://68744ad1-8dba-41d6-9c56-4a5aa4062eb2-00-2w8umvmvho639.sisko.replit.dev/grading/grade';
     const fileUpload = document.getElementById('fileUpload');
     const preview    = document.getElementById('preview');
     const loading    = document.getElementById('loading');
@@ -86,17 +121,17 @@
       scoreEl.textContent     = '—';
       adviceEl.textContent    = '—';
 
-      const base64 = await new Promise(r=>{
+      const base64 = await new Promise(r => {
         const fr = new FileReader();
-        fr.onload = ()=> r(fr.result.split(',')[1]);
+        fr.onload = () => r(fr.result.split(',')[1]);
         fr.readAsDataURL(file);
       });
 
       try {
         const res  = await fetch(ENDPOINT, {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({ image: base64 })
+          method: 'POST',
+          headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({ image: base64 })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || `서버 오류 ${res.status}`);
@@ -104,14 +139,14 @@
         buildTable(data.expectedAnswers, data.studentAnswers, data.wrongArr);
         scoreEl.textContent = data.score || '—';
 
-        const adv = (data.wrongArr||[]).map(no=>{
-          const hint = data.adviceMap?.[no]||'';
+        const adv = (data.wrongArr||[]).map(no => {
+          const hint = data.adviceMap?.[no] || '';
           return `문제 ${no}번: ${hint}`;
-        }).join('\n')||'—';
+        }).join('\n') || '—';
         adviceEl.textContent = adv;
 
         resultBox.style.display = 'block';
-      } catch(err) {
+      } catch (err) {
         errorMsg.textContent = err.message;
         errorBox.style.display = 'block';
       } finally {
@@ -141,9 +176,9 @@
       };
 
       const nums = qs;
-      const ans  = nums.map(n=> expected[n]);
-      const stu  = nums.map(n=> studentAns[n] ?? '—');
-      const res  = nums.map(n=> wrongArr.includes(n) ? 'X' : 'O');
+      const ans  = nums.map(n => expected[n]);
+      const stu  = nums.map(n => studentAns[n] ?? '—');
+      const res  = nums.map(n => wrongArr.includes(n) ? 'X' : 'O');
 
       tbl.appendChild(mkRow('문제번호', nums));
       tbl.appendChild(mkRow('정답',     ans));
@@ -152,38 +187,7 @@
 
       tableWrap.appendChild(tbl);
     }
-
-    function printResult() {
-      const content = document.getElementById('result').outerHTML;
-      const win = window.open('', '_blank');
-      win.document.write(`
-        <html>
-          <head>
-            <title>인쇄</title>
-            <style>
-              @page { size:80mm 80mm; margin:0; }
-              body { margin:0; padding:0; }
-              /* 화면 요소는 전부 숨기고 */
-              body * { display:none; }
-              /* #result만 보이게 */
-              #result, #result * { display:block; box-sizing:border-box; }
-              #result { width:80mm; height:80mm; padding:4mm; }
-              /* 자동 축소 */
-              html, body { width:80mm; height:80mm; }
-              #result { transform-origin:0 0; transform: scale(0.8); }
-              table.grade-table { width:100%; font-size:0.7rem; }
-            </style>
-          </head>
-          <body>
-            ${content}
-          </body>
-        </html>
-      `);
-      win.document.close();
-      win.focus();
-      win.print();
-      win.close();
-    }
   </script>
+
 </body>
 </html>
