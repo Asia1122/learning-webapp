@@ -25,7 +25,7 @@
     
     /* 4) 컨텐츠 자체를 50%로 확 축소 */
     transform-origin: top left;
-    transform: scale(0.5);
+    transform: scale(0.2);
   }
 
   /* 5) 테이블 레이아웃 복원 (transform 이후에도 잘 보이게) */
