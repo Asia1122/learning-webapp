@@ -21,7 +21,7 @@
     table.grade-table {
       border-collapse: collapse;
       margin: 0 auto;
-      width: 100%; max-width: 100%;
+      width: 100%;
       table-layout: fixed;
     }
     table.grade-table th, table.grade-table td {
@@ -36,18 +36,21 @@
     #advice { white-space: pre-wrap; }
   </style>
 
-  <!-- 인쇄 전용 스타일: 오직 #result만 보이고, 강제 축소 적용 -->
+  <!-- 인쇄 전용 스타일 -->
   <style media="print">
     @page {
       size: 80mm 80mm;
       margin: 0;
     }
+    /* 모든 화면 요소 숨기기 */
     body * {
       display: none !important;
     }
+    /* 결과(#result)만 보이게 */
     #result, #result * {
       display: block !important;
     }
+    /* 용지 크기 고정 */
     html, body {
       width: 80mm;
       height: 80mm;
@@ -55,6 +58,7 @@
       padding: 0;
       overflow: hidden;
     }
+    /* 결과 컨테이너 */
     #result {
       position: fixed;
       top: 0; left: 0;
@@ -63,15 +67,17 @@
       box-sizing: border-box;
       overflow: hidden;
 
-      /* 강제 스케일: 이 값을 조정해보세요 (0.7~0.9 사이) */
-      -webkit-transform-origin: top left;
+      /* 강제 축소: 인쇄 시 콘텐츠 자체를 줄이는 핵심 */
       transform-origin: top left;
-      -webkit-transform: scale(0.2);
-              transform: scale(0.2);
+      transform: scale(0.7) !important;
 
       page-break-after: avoid;
       page-break-before: avoid;
       page-break-inside: avoid;
+    }
+    /* 축소 후 여백 없이 꽉 채우기 */
+    #result {
+      margin: 0;
     }
   </style>
 </head>
@@ -211,6 +217,5 @@
       window.print();
     }
   </script>
-
 </body>
 </html>
