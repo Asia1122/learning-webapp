@@ -35,7 +35,36 @@
     table.grade-table td.incorrect{ color: red;   font-weight: bold; }
     #advice { white-space: pre-wrap; }
   </style>
-  <link rel="stylesheet" href="print.css" media="print">
+  <!-- 인쇄 전용 스타일 (여백 0, 80×80mm 용지) -->
+  <style media="print">
+    @page {
+      size: 80mm 80mm;
+      margin: 0;
+    }
+    body * {
+      display: none !important;
+    }
+    #result, #result * {
+      display: block !important;
+    }
+    html, body {
+      width: 80mm;
+      height: 80mm;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    #result {
+      position: absolute;
+      top: 0; left: 0;
+      box-sizing: border-box;
+      overflow: hidden;
+      /* transform 은 JS onbeforeprint 에서 설정 */
+      page-break-after: avoid;
+      page-break-before: avoid;
+      page-break-inside: avoid;
+    }
+  </style>
 </head>
 <body>
 
@@ -107,29 +136,17 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || `서버 오류 ${res.status}`);
 
-        // 기대: data.expectedAnswers:{no:correct,...},
-        //        data.studentAnswers:{no:ans,...},
-        //        data.wrongArr: [no,...],
-        //        data.score: "80점",
-        //        data.adviceMap:{no:hint,...}
+        // 테이블 그리기
+        buildTable(data.expectedAnswers, data.studentAnswers, data.wrongArr);
 
-        // 1) 채점표 그리기
-        buildTable(
-          data.expectedAnswers,
-          data.studentAnswers,
-          data.wrongArr || []
-        );
-
-        // 2) 점수
+        // 점수
         scoreEl.textContent = data.score || '—';
 
-        // 3) AI조언: 틀린 문제만, DB에서 불러온 조언
-        const adv = (data.wrongArr || [])
-          .map(no => {
-            const hint = data.adviceMap?.[no] || '';
-            return `문제 ${no}번: ${hint}`;
-          })
-          .join('\n') || '—';
+        // AI 조언: 틀린 문제만
+        const adv = (data.wrongArr||[]).map(no=>{
+          const hint = data.adviceMap?.[no] || '';
+          return `문제 ${no}번: ${hint}`;
+        }).join('\n') || '—';
         adviceEl.textContent = adv;
 
         resultBox.style.display = 'block';
@@ -143,7 +160,7 @@
     }
 
     function buildTable(expected, studentAns, wrongArr) {
-      const questions = Object.keys(expected)
+      const questions = Object.keys(expected||{})
                               .map(x=>Number(x))
                               .sort((a,b)=>a-b);
       if (!questions.length) return;
@@ -153,33 +170,27 @@
       // 1행: 문제번호
       const tr1 = document.createElement('tr');
       tr1.appendChild(labelCell('문제번호'));
-      questions.forEach(no=>{
-        tr1.appendChild(dataCell(no));
-      });
+      questions.forEach(no=> tr1.appendChild(dataCell(no)) );
       tbl.appendChild(tr1);
 
-      // 2행: 실제 정답
+      // 2행: 정답
       const tr2 = document.createElement('tr');
       tr2.appendChild(labelCell('정답'));
-      questions.forEach(no=>{
-        tr2.appendChild(dataCell(expected[no]));
-      });
+      questions.forEach(no=> tr2.appendChild(dataCell(expected[no])) );
       tbl.appendChild(tr2);
 
-      // 3행: 학생 답안
+      // 3행: 내 답
       const tr3 = document.createElement('tr');
       tr3.appendChild(labelCell('내 답'));
-      questions.forEach(no=>{
-        tr3.appendChild(dataCell(studentAns[no] ?? '—'));
-      });
+      questions.forEach(no=> tr3.appendChild(dataCell(studentAns[no] ?? '—')) );
       tbl.appendChild(tr3);
 
       // 4행: 결과 O/X
       const tr4 = document.createElement('tr');
       tr4.appendChild(labelCell('결과'));
       questions.forEach(no=>{
-        const ok = !wrongArr.includes(no);
-        const td = dataCell(ok ? 'O' : 'X');
+        const ok = !(wrongArr||[]).includes(no);
+        const td = dataCell(ok?'O':'X');
         td.className = ok ? 'correct' : 'incorrect';
         tr4.appendChild(td);
       });
@@ -194,12 +205,27 @@
       th.className = 'label-cell';
       return th;
     }
-
     function dataCell(txt) {
       const td = document.createElement('td');
       td.textContent = txt;
       return td;
     }
+
+    // 인쇄 전 자동 스케일링
+    window.onbeforeprint = () => {
+      const container = document.getElementById('result');
+      const pageW = document.documentElement.clientWidth;
+      const pageH = document.documentElement.clientHeight;
+      const contW = container.scrollWidth;
+      const contH = container.scrollHeight;
+      const scale = Math.min(pageW/contW, pageH/contH, 1);
+      container.style.transformOrigin = 'top left';
+      container.style.transform = `scale(${scale})`;
+    };
+    window.onafterprint = () => {
+      const container = document.getElementById('result');
+      container.style.transform = '';
+    };
 
     function printResult() {
       window.print();
