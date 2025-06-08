@@ -4,6 +4,8 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>📝 학습지 자동 채점</title>
+  <!-- 인쇄 전용 스타일만 print.css에 두고, 여기서는 스크린용 스타일만 정의 -->
+  <link rel="stylesheet" href="print.css" media="print">
   <style>
     body { font-family: sans-serif; text-align: center; padding: 2rem; background: #f5f5f5; }
     h1 { margin-bottom: 1rem; }
@@ -35,27 +37,6 @@
     table.grade-table td.incorrect{ color: red;   font-weight: bold; }
     #score { font-size: 1.2rem; font-weight: bold; }
     #advice { white-space: pre-wrap; font-size: 0.9rem; }
-
-  </style>
-
-  <!-- 인쇄 전용 최소 설정: 오직 #result 만 보이게, 용지 크기만 고정 -->
-  <style media="print">
-    @page { size: 80mm 80mm; margin: 0; }
-    body * { display: none !important; }
-    #result, #result * { display: block !important; }
-    html, body {
-      width: 80mm; height: 80mm;
-      margin: 0; padding: 0; overflow: hidden;
-    }
-    #result {
-      position: fixed; top:0; left:0;
-      width:100%; height:100%;
-      box-sizing: border-box;
-      /* transform 은 JS onbeforeprint 에서 설정 */
-      page-break-after: avoid;
-      page-break-before: avoid;
-      page-break-inside: avoid;
-    }
   </style>
 </head>
 <body>
@@ -126,11 +107,13 @@
 
         buildTable(data.expectedAnswers, data.studentAnswers, data.wrongArr);
         scoreEl.textContent = data.score || '—';
+
         const adv = (data.wrongArr||[]).map(no=>{
           const hint = data.adviceMap?.[no]||'';
           return `문제 ${no}번: ${hint}`;
         }).join('\n')||'—';
         adviceEl.textContent = adv;
+
         resultBox.style.display = 'block';
       } catch(err) {
         errorMsg.textContent = err.message;
@@ -146,42 +129,42 @@
       const tbl = document.createElement('table');
       tbl.className = 'grade-table';
 
-      const makeRow = (label, cells, clsMap={})=>{
+      // Helper to make a row
+      const makeRow = (label, values, clsMap={}) => {
         const tr = document.createElement('tr');
         const th = document.createElement('th');
         th.textContent = label;
         tr.appendChild(th);
-        cells.forEach(v=>{
+        values.forEach(v => {
           const td = document.createElement('td');
           td.textContent = v;
-          const cls = clsMap[v]||null;
-          if (cls) td.classList.add(cls);
+          if (clsMap[v]) td.classList.add(clsMap[v]);
           tr.appendChild(td);
         });
         return tr;
       };
 
-      // rows
       const nums = qs;
-      const ans = nums.map(n=>expected[n]);
-      const stu = nums.map(n=>studentAns[n] ?? '—');
-      const res = nums.map(n=> wrongArr.includes(n)?'X':'O' );
+      const ans  = nums.map(n=> expected[n] );
+      const stu  = nums.map(n=> studentAns[n] ?? '—');
+      const res  = nums.map(n=> wrongArr.includes(n) ? 'X' : 'O');
 
-      tbl.appendChild( makeRow('문제번호', nums) );
-      tbl.appendChild( makeRow('정답',     ans  ) );
-      tbl.appendChild( makeRow('내 답',   stu  ) );
-      tbl.appendChild( makeRow('결과',     res, {'O':'correct','X':'incorrect'} ) );
+      tbl.appendChild(makeRow('문제번호', nums));
+      tbl.appendChild(makeRow('정답',     ans));
+      tbl.appendChild(makeRow('내 답',   stu));
+      tbl.appendChild(makeRow('결과',     res, {'O':'correct','X':'incorrect'}));
 
       tableWrap.appendChild(tbl);
     }
 
+    // 인쇄 시 자동 축소
     window.onbeforeprint = () => {
       const c = document.getElementById('result');
       const pageW = document.documentElement.clientWidth;
       const pageH = document.documentElement.clientHeight;
       const contW = c.scrollWidth;
       const contH = c.scrollHeight;
-      const scale = Math.min(pageW/contW, pageH/contH,1);
+      const scale = Math.min(pageW/contW, pageH/contH, 1);
       c.style.transformOrigin = 'top left';
       c.style.transform = `scale(${scale})`;
     };
