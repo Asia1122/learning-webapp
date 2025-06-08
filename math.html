@@ -4,16 +4,12 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>📝 학습지 자동 채점</title>
-
-  <!-- 인쇄 전용 스타일 -->
-  <link rel="stylesheet" href="print.css" media="print">
-
   <style>
-    /* 화면용 스타일 그대로 유지 */
+    /* --- 화면용 스타일 (변경 없음) --- */
     body { font-family: sans-serif; text-align: center; padding: 2rem; background: #f5f5f5; }
     h1 { margin-bottom: 1rem; }
     .button { font-size: 1.1rem; padding: .75rem 1.5rem; margin: .5rem; cursor: pointer; border:none; border-radius:4px; background:#3182ce; color:#fff; }
-    #preview { display: none; margin: 1rem auto; border: 2px solid #ddd; border-radius:4px; width: 25%; height: auto; }
+    #preview { display: none; margin: 1rem auto; border: 2px solid #ddd; border-radius:4px; width: 25%; }
     #loading { display: none; color: #555; margin: 1rem; }
     #error, #result { display: none; margin: 2rem auto; width: 90%; max-width: 600px; text-align: left; padding: 1rem; border-radius:8px; }
     #error { background: #ffe6e6; border: 1px solid #feb2b2; color: #c53030; }
@@ -28,8 +24,7 @@
       table-layout: fixed;
       margin-bottom: 1rem;
     }
-    table.grade-table th,
-    table.grade-table td {
+    table.grade-table th, table.grade-table td {
       border: 1px solid #ccc;
       padding: 4px;
       text-align: center;
@@ -37,11 +32,10 @@
       font-size: 0.85rem;
     }
     table.grade-table th { background: #f0f0f0; }
-    table.grade-table td.correct   { color: blue;  font-weight: bold; }
-    table.grade-table td.incorrect { color: red;   font-weight: bold; }
-
-    #score  { font-size: 1.2rem; font-weight: bold; }
-    #advice { white-space: pre-wrap; font-size: 0.9rem; }
+    table.grade-table td.correct  { color: blue;  font-weight: bold; }
+    table.grade-table td.incorrect{ color: red;   font-weight: bold; }
+    #score { font-size: 1.2rem; font-weight: bold; }
+    #advice{ white-space: pre-wrap; font-size: 0.9rem; }
   </style>
 </head>
 <body>
@@ -50,7 +44,7 @@
 
   <input type="file" accept="image/*" id="fileUpload" style="display:none"/>
   <button class="button" onclick="fileUpload.click()">📸 사진 찍기 또는 업로드</button>
-  <button class="button" onclick="window.print()">🖨️ 인쇄</button>
+  <button class="button" onclick="printResult()">🖨️ 인쇄</button>
 
   <img id="preview" alt="업로드된 이미지"/>
 
@@ -58,22 +52,13 @@
   <div id="error"><div class="section-title">🚨 에러</div><pre id="errorMsg"></pre></div>
 
   <div id="result">
-    <div class="section">
-      <div class="section-title">📊 채점표</div>
-      <div class="table-wrapper" id="gradeTable"></div>
-    </div>
-    <div class="section">
-      <div class="section-title">🎯 점수</div>
-      <div id="score">—</div>
-    </div>
-    <div class="section">
-      <div class="section-title">📝 AI 조언</div>
-      <div id="advice">—</div>
-    </div>
+    <div class="section"><div class="section-title">📊 채점표</div><div class="table-wrapper" id="gradeTable"></div></div>
+    <div class="section"><div class="section-title">🎯 점수</div><div id="score">—</div></div>
+    <div class="section"><div class="section-title">📝 AI 조언</div><div id="advice">—</div></div>
   </div>
 
   <script>
-    const ENDPOINT   = 'https://68744ad1-8dba-41d6-9c56-4a5aa4062eb2-00-2w8umvmvho639.sisko.replit.dev/grading/grade';
+    const ENDPOINT = 'https://68744ad1-8dba-41d6-9c56-4a5aa4062eb2-00-2w8umvmvho639.sisko.replit.dev/grading/grade';
     const fileUpload = document.getElementById('fileUpload');
     const preview    = document.getElementById('preview');
     const loading    = document.getElementById('loading');
@@ -94,7 +79,6 @@
     });
 
     async function handleFile(file) {
-      // 초기화
       loading.style.display   = 'block';
       resultBox.style.display = 'none';
       errorBox.style.display  = 'none';
@@ -102,35 +86,32 @@
       scoreEl.textContent     = '—';
       adviceEl.textContent    = '—';
 
-      // base64
-      const base64 = await new Promise(r => {
+      const base64 = await new Promise(r=>{
         const fr = new FileReader();
-        fr.onload = () => r(fr.result.split(',')[1]);
+        fr.onload = ()=> r(fr.result.split(',')[1]);
         fr.readAsDataURL(file);
       });
 
       try {
         const res  = await fetch(ENDPOINT, {
-          method: 'POST',
-          headers: { 'Content-Type':'application/json' },
-          body: JSON.stringify({ image: base64 })
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ image: base64 })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || `서버 오류 ${res.status}`);
 
-        // 테이블 그리기
         buildTable(data.expectedAnswers, data.studentAnswers, data.wrongArr);
         scoreEl.textContent = data.score || '—';
 
-        // 조언 출력
-        const adv = (data.wrongArr||[]).map(no => {
-          const hint = data.adviceMap?.[no] || '';
+        const adv = (data.wrongArr||[]).map(no=>{
+          const hint = data.adviceMap?.[no]||'';
           return `문제 ${no}번: ${hint}`;
-        }).join('\n') || '—';
+        }).join('\n')||'—';
         adviceEl.textContent = adv;
 
         resultBox.style.display = 'block';
-      } catch (err) {
+      } catch(err) {
         errorMsg.textContent = err.message;
         errorBox.style.display = 'block';
       } finally {
@@ -139,9 +120,7 @@
     }
 
     function buildTable(expected, studentAns, wrongArr) {
-      const qs = Object.keys(expected||{})
-                      .map(Number)
-                      .sort((a,b)=>a-b);
+      const qs = Object.keys(expected||{}).map(Number).sort((a,b)=>a-b);
       if (!qs.length) return;
 
       const tbl = document.createElement('table');
@@ -162,9 +141,9 @@
       };
 
       const nums = qs;
-      const ans  = nums.map(n => expected[n]);
-      const stu  = nums.map(n => studentAns[n] ?? '—');
-      const res  = nums.map(n => wrongArr.includes(n) ? 'X' : 'O');
+      const ans  = nums.map(n=> expected[n]);
+      const stu  = nums.map(n=> studentAns[n] ?? '—');
+      const res  = nums.map(n=> wrongArr.includes(n) ? 'X' : 'O');
 
       tbl.appendChild(mkRow('문제번호', nums));
       tbl.appendChild(mkRow('정답',     ans));
@@ -173,7 +152,38 @@
 
       tableWrap.appendChild(tbl);
     }
-  </script>
 
+    function printResult() {
+      const content = document.getElementById('result').outerHTML;
+      const win = window.open('', '_blank');
+      win.document.write(`
+        <html>
+          <head>
+            <title>인쇄</title>
+            <style>
+              @page { size:80mm 80mm; margin:0; }
+              body { margin:0; padding:0; }
+              /* 화면 요소는 전부 숨기고 */
+              body * { display:none; }
+              /* #result만 보이게 */
+              #result, #result * { display:block; box-sizing:border-box; }
+              #result { width:80mm; height:80mm; padding:4mm; }
+              /* 자동 축소 */
+              html, body { width:80mm; height:80mm; }
+              #result { transform-origin:0 0; transform: scale(0.8); }
+              table.grade-table { width:100%; font-size:0.7rem; }
+            </style>
+          </head>
+          <body>
+            ${content}
+          </body>
+        </html>
+      `);
+      win.document.close();
+      win.focus();
+      win.print();
+      win.close();
+    }
+  </script>
 </body>
 </html>
