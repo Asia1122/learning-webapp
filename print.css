@@ -1,36 +1,37 @@
 /* print.css */
 @media print {
-  /* 1) 페이지 크기와 여백 고정 */
+  /* 1) 용지 크기와 여백 */
   @page {
     size: 80mm 80mm;
     margin: 0;
   }
 
-  /* 2) 화면의 모든 요소 숨기되, result 컨테이너만 보이도록 */
+  /* 2) 화면의 모든 요소 숨기되, result 컨테이너만 남김 */
   body > *:not(#result):not(#result *) {
     display: none !important;
   }
 
-  /* 3) result 컨테이너 위치 고정 */
+  /* 3) result 영역 전체 표시 */
   #result {
     display: block !important;
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 80mm;
-    height: 80mm;
-    padding: 2mm;      /* 최소 여백 */
+    top: 0; left: 0;
+    width: 80mm;  height: 80mm;
+    padding: 2mm;
     box-sizing: border-box;
-    overflow: visible; /* AI조언까지 보이게 */
-    
-    /* 4) 컨텐츠 자체를 50%로 확 축소 */
-    transform-origin: top left;
-    transform: scale(0.2);
+    overflow: visible;
+    transform: none !important;  /* 이전에 scaling을 걸었다면 초기화 */
   }
 
-  /* 5) 테이블 레이아웃 복원 (transform 이후에도 잘 보이게) */
-  #result table            { display: table !important; width: 100% !important; }
-  #result thead, tbody     { display: table-row-group !important;            }
-  #result tr               { display: table-row !important;                  }
-  #result th, #result td   { display: table-cell !important;                 }
+  /* 4) 채점표(테이블) 숨기기 */
+  #gradeTable,
+  #gradeTable * {
+    display: none !important;
+  }
+
+  /* 5) 점수와 조언만 보이도록 강제 */
+  #score,
+  #advice {
+    display: block !important;
+  }
 }
