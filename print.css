@@ -6,32 +6,40 @@
 }
 
 @media print {
-  /* 모든 화면 요소 숨기기 */
+  /* 화면의 모든 요소 숨기기 */
   body * {
     display: none !important;
   }
 
-  /* #result만 보이도록 */
+  /* 오직 결과 섹션만 보이도록 */
   #result,
   #result * {
     display: block !important;
   }
 
-  /* #result를 페이지 전체에 고정 */
+  /* page 자체와 #result를 80×80mm 전체에 맞추기 */
   html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
+    margin: 0; padding: 0;
+    height: 80mm; width: 80mm;
+    overflow: hidden;
   }
 
   #result {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    position: absolute;
+    top: 0; left: 0;
+    width: 80mm; height: 80mm;
     box-sizing: border-box;
-    /* 인쇄 중 스크롤 없이 전체를 보이게 */
+    /* 넘치는 부분 숨기기 */
     overflow: hidden;
+    /* 페이지 중단없이 한 페이지에 전부 들어가게 자동 축소 */
+    transform-origin: top left;
+    transform: scale(0.9); /* 필요시 0.9 → 0.8 등 조정하세요 */
+  }
+
+  /* 페이지 분할 방지 */
+  #result {
+    page-break-after: avoid;
+    page-break-before: avoid;
+    page-break-inside: avoid;
   }
 }
