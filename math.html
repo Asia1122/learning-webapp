@@ -9,75 +9,52 @@
     h1 { margin-bottom: 1rem; }
     .button { font-size: 1.1rem; padding: .75rem 1.5rem; margin: .5rem; cursor: pointer; border:none; border-radius:4px; background:#3182ce; color:#fff; }
     #preview { display: none; margin: 1rem auto; border: 2px solid #ddd; border-radius:4px; width: 25%; height: auto; }
-    #ocrText { display: none; white-space: pre-wrap; background: #fff; padding: 1rem; margin: 1rem auto; max-width: 80%; border: 1px solid #ccc; text-align: left; }
     #loading { display: none; color: #555; margin: 1rem; }
-    #result, #error { display: none; text-align: left; margin: 2rem auto; width: 90%; max-width: 600px; border-radius: 8px; padding: 1rem; }
+    #error, #result { display: none; margin: 2rem auto; width: 90%; max-width: 600px; text-align: left; padding: 1rem; border-radius:8px; }
+    #error { background: #ffe6e6; border: 1px solid #feb2b2; color: #c53030; }
     #result { background: #e6fffa; border: 1px solid #b2f5ea; }
-    #error  { background: #ffe6e6; border: 1px solid #feb2b2; color: #c53030; }
     .section { margin-bottom: 1rem; }
     .section-title { font-weight: bold; margin-bottom: .5rem; }
 
     .table-wrapper { overflow-x: auto; width: 100%; }
     table.grade-table {
       border-collapse: collapse;
-      margin: 0 auto;
       width: 100%;
       table-layout: fixed;
+      margin-bottom: 1rem;
     }
     table.grade-table th, table.grade-table td {
       border: 1px solid #ccc;
-      padding: 6px 4px;
+      padding: 4px;
       text-align: center;
       word-break: break-all;
+      font-size: 0.85rem;
     }
     table.grade-table th { background: #f0f0f0; }
     table.grade-table td.correct  { color: blue;  font-weight: bold; }
     table.grade-table td.incorrect{ color: red;   font-weight: bold; }
-    #advice { white-space: pre-wrap; }
+    #score { font-size: 1.2rem; font-weight: bold; }
+    #advice { white-space: pre-wrap; font-size: 0.9rem; }
+
   </style>
 
-  <!-- 인쇄 전용 스타일 -->
+  <!-- 인쇄 전용 최소 설정: 오직 #result 만 보이게, 용지 크기만 고정 -->
   <style media="print">
-    @page {
-      size: 80mm 80mm;
-      margin: 0;
-    }
-    /* 모든 화면 요소 숨기기 */
-    body * {
-      display: none !important;
-    }
-    /* 결과(#result)만 보이게 */
-    #result, #result * {
-      display: block !important;
-    }
-    /* 용지 크기 고정 */
+    @page { size: 80mm 80mm; margin: 0; }
+    body * { display: none !important; }
+    #result, #result * { display: block !important; }
     html, body {
-      width: 80mm;
-      height: 80mm;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
+      width: 80mm; height: 80mm;
+      margin: 0; padding: 0; overflow: hidden;
     }
-    /* 결과 컨테이너 */
     #result {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%;
-      height: 100%;
+      position: fixed; top:0; left:0;
+      width:100%; height:100%;
       box-sizing: border-box;
-      overflow: hidden;
-
-      /* 강제 축소: 인쇄 시 콘텐츠 자체를 줄이는 핵심 */
-      transform-origin: top left;
-      transform: scale(0.7) !important;
-
+      /* transform 은 JS onbeforeprint 에서 설정 */
       page-break-after: avoid;
       page-break-before: avoid;
       page-break-inside: avoid;
-    }
-    /* 축소 후 여백 없이 꽉 채우기 */
-    #result {
-      margin: 0;
     }
   </style>
 </head>
@@ -91,10 +68,8 @@
 
   <img id="preview" alt="업로드된 이미지"/>
 
-  <div id="ocrText"></div>
-
   <div id="loading">채점 중… ⏳</div>
-  <div id="error"><div class="section-title">🚨 에러 메시지</div><pre id="errorMsg"></pre></div>
+  <div id="error"><div class="section-title">🚨 에러</div><pre id="errorMsg"></pre></div>
 
   <div id="result">
     <div class="section">
@@ -134,7 +109,7 @@
       scoreEl.textContent     = '—';
       adviceEl.textContent    = '—';
 
-      const base64 = await new Promise(r => {
+      const base64 = await new Promise(r=>{
         const fr = new FileReader();
         fr.onload = ()=> r(fr.result.split(',')[1]);
         fr.readAsDataURL(file);
@@ -151,15 +126,12 @@
 
         buildTable(data.expectedAnswers, data.studentAnswers, data.wrongArr);
         scoreEl.textContent = data.score || '—';
-
         const adv = (data.wrongArr||[]).map(no=>{
-          const hint = data.adviceMap?.[no] || '';
+          const hint = data.adviceMap?.[no]||'';
           return `문제 ${no}번: ${hint}`;
-        }).join('\n') || '—';
+        }).join('\n')||'—';
         adviceEl.textContent = adv;
-
         resultBox.style.display = 'block';
-
       } catch(err) {
         errorMsg.textContent = err.message;
         errorBox.style.display = 'block';
@@ -169,53 +141,56 @@
     }
 
     function buildTable(expected, studentAns, wrongArr) {
-      const qs = Object.keys(expected||{}).map(x=>Number(x)).sort((a,b)=>a - b);
+      const qs = Object.keys(expected||{}).map(x=>+x).sort((a,b)=>a-b);
       if (!qs.length) return;
       const tbl = document.createElement('table');
       tbl.className = 'grade-table';
 
-      const tr1 = document.createElement('tr');
-      tr1.appendChild(labelCell('문제번호'));
-      qs.forEach(no => tr1.appendChild(dataCell(no)));
-      tbl.appendChild(tr1);
+      const makeRow = (label, cells, clsMap={})=>{
+        const tr = document.createElement('tr');
+        const th = document.createElement('th');
+        th.textContent = label;
+        tr.appendChild(th);
+        cells.forEach(v=>{
+          const td = document.createElement('td');
+          td.textContent = v;
+          const cls = clsMap[v]||null;
+          if (cls) td.classList.add(cls);
+          tr.appendChild(td);
+        });
+        return tr;
+      };
 
-      const tr2 = document.createElement('tr');
-      tr2.appendChild(labelCell('정답'));
-      qs.forEach(no => tr2.appendChild(dataCell(expected[no])));
-      tbl.appendChild(tr2);
+      // rows
+      const nums = qs;
+      const ans = nums.map(n=>expected[n]);
+      const stu = nums.map(n=>studentAns[n] ?? '—');
+      const res = nums.map(n=> wrongArr.includes(n)?'X':'O' );
 
-      const tr3 = document.createElement('tr');
-      tr3.appendChild(labelCell('내 답'));
-      qs.forEach(no => tr3.appendChild(dataCell(studentAns[no] ?? '—')));
-      tbl.appendChild(tr3);
-
-      const tr4 = document.createElement('tr');
-      tr4.appendChild(labelCell('결과'));
-      qs.forEach(no => {
-        const ok = !(wrongArr||[]).includes(no);
-        const td = dataCell(ok ? 'O' : 'X');
-        td.className = ok ? 'correct' : 'incorrect';
-        tr4.appendChild(td);
-      });
-      tbl.appendChild(tr4);
+      tbl.appendChild( makeRow('문제번호', nums) );
+      tbl.appendChild( makeRow('정답',     ans  ) );
+      tbl.appendChild( makeRow('내 답',   stu  ) );
+      tbl.appendChild( makeRow('결과',     res, {'O':'correct','X':'incorrect'} ) );
 
       tableWrap.appendChild(tbl);
     }
 
-    function labelCell(t) {
-      const th = document.createElement('th');
-      th.textContent = t;
-      return th;
-    }
-    function dataCell(txt) {
-      const td = document.createElement('td');
-      td.textContent = txt;
-      return td;
-    }
+    window.onbeforeprint = () => {
+      const c = document.getElementById('result');
+      const pageW = document.documentElement.clientWidth;
+      const pageH = document.documentElement.clientHeight;
+      const contW = c.scrollWidth;
+      const contH = c.scrollHeight;
+      const scale = Math.min(pageW/contW, pageH/contH,1);
+      c.style.transformOrigin = 'top left';
+      c.style.transform = `scale(${scale})`;
+    };
+    window.onafterprint = () => {
+      const c = document.getElementById('result');
+      c.style.transform = '';
+    };
 
-    function printResult() {
-      window.print();
-    }
+    function printResult(){ window.print(); }
   </script>
 </body>
 </html>
