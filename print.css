@@ -2,29 +2,36 @@
 
 @page {
   size: 80mm 80mm;
-  margin: 1mm;
+  margin: 0;
 }
 
 @media print {
-  /* 화면의 모든 요소를 숨깁니다 */
+  /* 모든 화면 요소 숨기기 */
   body * {
     display: none !important;
   }
 
-  /* 오직 #result 섹션과 그 자식들만 보이도록 */
+  /* #result만 보이도록 */
   #result,
   #result * {
     display: block !important;
   }
 
-  /* #result를 페이지 최상단에 고정해서 꽉 채우기 */
+  /* #result를 페이지 전체에 고정 */
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }
+
   #result {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
-    /* 필요하다면 높이도 지정 */
-    /* height: 100%; */
+    height: 100%;
     box-sizing: border-box;
+    /* 인쇄 중 스크롤 없이 전체를 보이게 */
+    overflow: hidden;
   }
 }
