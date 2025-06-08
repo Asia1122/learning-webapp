@@ -1,45 +1,46 @@
 /* print.css */
 @media print {
-  /* 1) 용지 설정 */
+  /* 용지 크기와 여백 */
   @page {
     size: 80mm 80mm;
     margin: 0;
   }
 
-  /* 2) 기본적으로 화면의 모든 요소 숨기기 */
+  /* 1) 전체 숨기기 */
   body * {
     visibility: hidden !important;
   }
 
-  /* 3) #result 및 자손만 보여주기 */
-  #result, 
+  /* 2) #result 섹션과 자손만 보이도록 */
+  #result,
   #result * {
     visibility: visible !important;
   }
 
-  /* 4) #result 위치·크기 고정 */
-  #result {
-    position: absolute;
-    top: 0; left: 0;
-    width: 80mm;
-    height: 80mm;
-    box-sizing: border-box;
-    padding: 2mm;
-  }
-
-  /* 5) 채점표(테이블) 완전 숨기기 */
-  #gradeTable,
-  #gradeTable * {
+  /* 3) 첫 번째 .section (채점표 영역) 완전 제거 */
+  #result > .section:first-child {
     display: none !important;
   }
 
-  /* 6) 점수와 조언만 보이도록 */
-  #score, 
-  #advice {
-    display: block !important;
+  /* 4) #result 컨테이너 전체 크기 고정 및 축소 */
+  #result {
+    position: absolute;
+    top: 0; 
+    left: 0;
+    width: 80mm;
+    height: 80mm;
+    padding: 2mm;
+    box-sizing: border-box;
+
+    transform-origin: top left;
+    transform: scale(0.4); /* 40% 크기로 축소 */
   }
 
-  /* 7) 남은 글자 크기는 그대로 */
-  #score { font-size: 1.2rem !important; }
-  #advice { font-size: 0.9rem !important; }
+  /* 5) 테이블 레이아웃 복원(만약 남아 있을 경우) */
+  #result table {
+    display: table !important;
+    width: 100% !important;
+  }
+  #result tr    { display: table-row !important; }
+  #result th, td { display: table-cell !important; }
 }
