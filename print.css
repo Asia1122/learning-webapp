@@ -1,46 +1,48 @@
 /* print.css */
 @media print {
-  /* 용지 크기와 여백 */
+  /* 1) 용지 크기 및 여백 0 */
   @page {
     size: 80mm 80mm;
     margin: 0;
+    /* CSS3 Paged Media: 머리말/꼬리말 모두 비우기 */
+    @top-left    { content: none; }
+    @top-center  { content: none; }
+    @top-right   { content: none; }
+    @bottom-left  { content: none; }
+    @bottom-center{ content: none; }
+    @bottom-right { content: none; }
   }
 
-  /* 1) 전체 숨기기 */
+  /* 2) 화면 요소 모두 숨기고, 결과 섹션만 보이기 */
   body * {
     visibility: hidden !important;
   }
-
-  /* 2) #result 섹션과 자손만 보이도록 */
   #result,
   #result * {
     visibility: visible !important;
   }
 
-  /* 3) 첫 번째 .section (채점표 영역) 완전 제거 */
+  /* 3) #result 위치·크기 고정 */
+  #result {
+    position: absolute;
+    top: 0; left: 0;
+    width: 80mm;  height: 80mm;
+    padding: 0;  /* 내부 여백도 0 */
+    box-sizing: border-box;
+    overflow: visible;
+    /* 콘텐츠 자체를 더 줄여서 꽉 채우기 */
+    transform-origin: top left;
+    transform: scale(0.4);
+  }
+
+  /* 4) 채점표 영역 완전 숨기기 */
   #result > .section:first-child {
     display: none !important;
   }
 
-  /* 4) #result 컨테이너 전체 크기 고정 및 축소 */
-  #result {
-    position: absolute;
-    top: 0; 
-    left: 0;
-    width: 80mm;
-    height: 80mm;
-    padding: 2mm;
-    box-sizing: border-box;
-
-    transform-origin: top left;
-    transform: scale(0.4); /* 40% 크기로 축소 */
-  }
-
-  /* 5) 테이블 레이아웃 복원(만약 남아 있을 경우) */
-  #result table {
-    display: table !important;
-    width: 100% !important;
-  }
-  #result tr    { display: table-row !important; }
-  #result th, td { display: table-cell !important; }
+  /* 5) 테이블 레이아웃 복원 (혹시 남아있다면) */
+  #result table            { display: table !important; width: 100% !important; }
+  #result thead, tbody     { display: table-row-group !important; }
+  #result tr               { display: table-row !important; }
+  #result th, #result td   { display: table-cell !important; }
 }
